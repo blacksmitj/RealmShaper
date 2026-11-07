@@ -1,0 +1,7 @@
+packages:
+  - 'server'
+  - 'web-studio'
+  - 'web-admin'
+  - 'packages/*'
+allowBuilds:
+  esbuild: true

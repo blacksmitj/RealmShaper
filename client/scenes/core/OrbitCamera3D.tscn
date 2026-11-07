@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://c5m2v8q1w3e4r"]
+
+[ext_resource type="Script" path="res://scripts/core/OrbitCamera3D.gd" id="1_cam"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_1"]
+radius = 0.25
+
+[node name="OrbitCamera3D" type="Node3D"]
+script = ExtResource("1_cam")
+
+[node name="SpringArm3D" type="SpringArm3D" parent="."]
+shape = SubResource("SphereShape3D_1")
+spring_length = 12.0
+
+[node name="Camera3D" type="Camera3D" parent="SpringArm3D"]
+current = true
+fov = 45.0
+

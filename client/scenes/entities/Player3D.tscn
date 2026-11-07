@@ -1,0 +1,55 @@
+[gd_scene format=3 uid="uid://b8t5k3v1l9x4p"]
+
+[ext_resource type="Script" path="res://scripts/entities/PlayerController3D.gd" id="1_controller"]
+[ext_resource type="Script" path="res://scripts/entities/CharacterVisualizer3D.gd" id="2_visualizer"]
+[ext_resource type="Script" path="res://scripts/components/HealthComponent.gd" id="3_health"]
+[ext_resource type="Script" path="res://scripts/components/StatsComponent.gd" id="4_stats"]
+[ext_resource type="Script" path="res://scripts/components/HitboxComponent.gd" id="5_hitbox"]
+[ext_resource type="Script" path="res://scripts/components/HurtboxComponent.gd" id="6_hurtbox"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.4
+height = 1.6
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hitbox"]
+size = Vector3(1.4, 1.4, 1.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_player_hurtbox"]
+size = Vector3(1.0, 1.6, 1.0)
+
+[node name="Player3D" type="CharacterBody3D" groups=["players"]]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_controller")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("3_health")
+
+[node name="StatsComponent" type="Node" parent="."]
+script = ExtResource("4_stats")
+
+[node name="CharacterVisualizer3D" type="Node3D" parent="."]
+script = ExtResource("2_visualizer")
+
+[node name="HitboxComponent" type="Area3D" parent="CharacterVisualizer3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 1.0)
+collision_layer = 8
+collision_mask = 16
+script = ExtResource("5_hitbox")
+
+[node name="HitboxShape" type="CollisionShape3D" parent="CharacterVisualizer3D/HitboxComponent"]
+shape = SubResource("BoxShape3D_hitbox")
+
+[node name="HurtboxComponent" type="Area3D" parent="." node_paths=PackedStringArray("health_component")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+collision_layer = 32
+collision_mask = 64
+script = ExtResource("6_hurtbox")
+health_component = NodePath("../HealthComponent")
+
+[node name="HurtboxShape" type="CollisionShape3D" parent="HurtboxComponent"]
+shape = SubResource("BoxShape3D_player_hurtbox")

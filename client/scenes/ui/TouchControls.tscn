@@ -1,0 +1,253 @@
+[gd_scene load_steps=8 format=3 uid="uid://c6v2j8k0v5l1m"]
+
+[ext_resource type="Script" path="res://scripts/ui/TouchControls.gd" id="1_touch"]
+[ext_resource type="Script" path="res://scripts/ui/TouchJoystick.gd" id="2_joy"]
+[ext_resource type="Script" path="res://scripts/ui/NetworkStatusIndicator.gd" id="3_net"]
+[ext_resource type="Script" path="res://scripts/ui/MobileThumbZoneLayout.gd" id="4_safe"]
+[ext_resource type="Script" path="res://scripts/ui/PerformanceMonitor.gd" id="5_perf"]
+[ext_resource type="PackedScene" uid="uid://bhu8x2gothichud" path="res://scenes/ui/GothicPlayerHUD.tscn" id="6_gothichud"]
+[ext_resource type="Texture2D" uid="uid://dc415g5vp1rk4" path="res://assets/ui/button_action.png" id="7_btn"]
+
+[node name="TouchControls" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("1_touch")
+
+[node name="SafeThumbZone" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("4_safe")
+
+[node name="LeftZone" type="Control" parent="SafeThumbZone"]
+layout_mode = 1
+anchor_right = 0.45
+anchor_bottom = 1.0
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="VirtualJoystick" type="Control" parent="SafeThumbZone/LeftZone"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("2_joy")
+
+[node name="RightZone" type="Control" parent="SafeThumbZone"]
+layout_mode = 1
+anchor_left = 0.45
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="CombatButtons" type="Control" parent="SafeThumbZone"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -340.0
+offset_top = -250.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 1
+
+[node name="AttackButton" type="TextureButton" parent="SafeThumbZone/CombatButtons"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -110.0
+offset_top = -110.0
+offset_right = -18.0
+offset_bottom = -18.0
+grow_horizontal = 0
+grow_vertical = 0
+texture_normal = ExtResource("7_btn")
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="AttackLabel" type="Label" parent="SafeThumbZone/CombatButtons/AttackButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 14
+text = "ATK"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DashButton" type="Button" parent="SafeThumbZone/CombatButtons"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -185.0
+offset_top = -65.0
+offset_right = -125.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 12
+text = "DASH"
+
+[node name="Skill1Button" type="Button" parent="SafeThumbZone/CombatButtons"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -185.0
+offset_top = -125.0
+offset_right = -125.0
+offset_bottom = -75.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 12
+text = "SKILL 1"
+
+[node name="Skill2Button" type="Button" parent="SafeThumbZone/CombatButtons"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -125.0
+offset_top = -180.0
+offset_right = -65.0
+offset_bottom = -130.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 12
+text = "SKILL 2"
+
+[node name="SwapButton" type="Button" parent="SafeThumbZone/CombatButtons"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -265.0
+offset_top = -65.0
+offset_right = -195.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 11
+text = "WEAPON"
+
+[node name="ArmorButton" type="Button" parent="SafeThumbZone/CombatButtons"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -335.0
+offset_top = -65.0
+offset_right = -275.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 11
+text = "ARMOR"
+
+[node name="StatsButton" type="Button" parent="SafeThumbZone/CombatButtons"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -265.0
+offset_top = -125.0
+offset_right = -195.0
+offset_bottom = -75.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 11
+text = "STATS"
+
+[node name="GothicPlayerHUD" parent="SafeThumbZone" instance=ExtResource("6_gothichud")]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 56.0
+offset_right = 300.0
+offset_bottom = 136.0
+
+[node name="TopHUD" type="Control" parent="SafeThumbZone"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 50.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="NetworkStatus" type="Label" parent="SafeThumbZone/TopHUD"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -260.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 32.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 13
+text = "Network: Connecting..."
+horizontal_alignment = 2
+script = ExtResource("3_net")
+
+[node name="PerformanceMonitor" type="Control" parent="SafeThumbZone/TopHUD"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 280.0
+offset_bottom = 48.0
+mouse_filter = 2
+script = ExtResource("5_perf")
+
+[node name="StatsLabel" type="Label" parent="SafeThumbZone/TopHUD/PerformanceMonitor"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 12
+text = "FPS: 60 | Draw Calls: 0
+RAM: 0.0 MB | Objects: 0"
+
+[node name="TapIndicator" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+
+[connection signal="gui_input" from="SafeThumbZone/RightZone" to="." method="_on_right_zone_gui_input"]

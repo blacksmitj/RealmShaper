@@ -1,0 +1,24 @@
+{
+  "name": "realmshaper-server",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Authoritative Game Engine & Gateway Server for RealmShaper: Online",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.2.1",
+    "@fastify/websocket": "^11.0.2",
+    "@fastify/cors": "^10.0.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "@types/ws": "^8.5.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3 uid="uid://c4n8m2qaw7q10"]
+
+[ext_resource type="Script" path="res://scripts/resources/WeaponData.gd" id="1_wpn"]
+
+[resource]
+script = ExtResource("1_wpn")
+weapon_id = "arcane_staff"
+weapon_name = "Grandmaster Arcane Staff"
+category = 3
+attack_type = "MAGIC"
+base_attack_bonus = 32
+attack_range = 9.0
+attack_cooldown = 0.65
+hitbox_shape_radius = 2.5
+blade_color = Color(0.35, 0.6, 1.0, 1)
+hilt_color = Color(0.4, 0.28, 0.18, 1)
+model_path = "res://assets/models/adventurers/staff.gltf"
+offhand_model_path = "res://assets/models/adventurers/shield_round_color.gltf"
+attack_anim_name = "Spellcast_Shoot"
+

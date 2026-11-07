@@ -1,0 +1,53 @@
+# ==========================================
+# RealmShaper: Online — Monorepo .gitignore
+# ==========================================
+
+# --- Godot 4.7+ Client (client/) ---
+.godot/
+client/.godot/
+client/android/
+client/ios/
+client/builds/
+client/export/
+*.translation
+*.apk
+*.aab
+*.ipa
+*.pck
+override.cfg
+
+# --- Node.js / TypeScript (server/, web-studio/, web-admin/) ---
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+.vite/
+**/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tsbuildinfo
+
+# --- Environment & Secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- OS, IDE & Logs ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.log
+logs/
+**/logs/
+

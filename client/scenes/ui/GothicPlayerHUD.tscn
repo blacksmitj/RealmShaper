@@ -1,0 +1,120 @@
+[gd_scene format=3 uid="uid://onjj1fasb5ih"]
+
+[ext_resource type="Script" path="res://scripts/ui/GothicPlayerHUD.gd" id="1_hud"]
+[ext_resource type="Texture2D" uid="uid://csrp2hrgfwolr" path="res://assets/ui/bar_frame.png" id="2_frame"]
+
+[node name="GothicPlayerHUD" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 280.0
+offset_bottom = 100.0
+mouse_filter = 2
+script = ExtResource("1_hud")
+
+[node name="LevelBadge" type="Panel" parent="."]
+layout_mode = 0
+offset_right = 44.0
+offset_bottom = 44.0
+
+[node name="LevelLabel" type="Label" parent="LevelBadge"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 13
+text = "Lv. 1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HPBar" type="TextureProgressBar" parent="."]
+layout_mode = 0
+offset_left = 50.0
+offset_right = 230.0
+offset_bottom = 22.0
+value = 100.0
+nine_patch_stretch = true
+texture_over = ExtResource("2_frame")
+tint_progress = Color(0.85, 0.15, 0.15, 1)
+
+[node name="HPLabel" type="Label" parent="HPBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 11
+text = "HP 100 / 100"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MPBar" type="TextureProgressBar" parent="."]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 24.0
+offset_right = 210.0
+offset_bottom = 42.0
+value = 75.0
+nine_patch_stretch = true
+texture_over = ExtResource("2_frame")
+tint_progress = Color(0.2, 0.45, 0.95, 1)
+
+[node name="MPLabel" type="Label" parent="MPBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 10
+text = "MP 50 / 50"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EXPBar" type="TextureProgressBar" parent="."]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 44.0
+offset_right = 250.0
+offset_bottom = 54.0
+value = 25.0
+nine_patch_stretch = true
+texture_over = ExtResource("2_frame")
+tint_progress = Color(0.3, 0.85, 0.4, 1)
+
+[node name="EXPLabel" type="Label" parent="EXPBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 8
+text = "EXP 0 / 100"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EquipmentLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 58.0
+offset_right = 280.0
+offset_bottom = 76.0
+theme_override_colors/font_color = Color(0.9, 0.85, 0.65, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 10
+text = "Claymore | Knight Bastion"
+vertical_alignment = 1
