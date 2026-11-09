@@ -122,6 +122,32 @@ func _load_pgc_json_map(json_path: String) -> void:
 	static_body.collision_layer = 1
 	_dynamic_content_root.add_child(static_body)
 
+	# Dukungan Voxel Blocks 3D (hingga 20 tile ke atas)
+	var voxel_blocks: Array = map_data.get("voxel_blocks", [])
+	if not voxel_blocks.is_empty():
+		for vb in voxel_blocks:
+			var vb_dict := vb as Dictionary
+			var bx: float = origin_x + (float(vb_dict.get("x", 0)) * 2.0)
+			var by: float = (float(vb_dict.get("y", 0)) * 1.15) + 0.575
+			var bz: float = origin_z + (float(vb_dict.get("z", 0)) * 2.0)
+			var rot_y: float = deg_to_rad(float(vb_dict.get("rotation_y", 0.0)))
+
+			var block_mesh: MeshInstance3D = MeshInstance3D.new()
+			var box_m: BoxMesh = BoxMesh.new()
+			box_m.size = Vector3(1.96, 1.12, 1.96)
+			box_m.material = wall_mat
+			block_mesh.mesh = box_m
+			block_mesh.position = Vector3(bx, by, bz)
+			block_mesh.rotation = Vector3(0.0, rot_y, 0.0)
+			_dynamic_content_root.add_child(block_mesh)
+
+			var c_shape: CollisionShape3D = CollisionShape3D.new()
+			var box_shape: BoxShape3D = BoxShape3D.new()
+			box_shape.size = Vector3(1.96, 1.12, 1.96)
+			c_shape.shape = box_shape
+			c_shape.position = Vector3(bx, by, bz)
+			static_body.add_child(c_shape)
+
 	for y in range(height):
 		for x in range(width):
 			var idx: int = y * width + x

@@ -190,11 +190,24 @@ export interface PortalData {
   label: string;
 }
 
+export type SnapFace = 'top' | 'bottom' | 'north' | 'south' | 'east' | 'west';
+
+export interface VoxelBlockData {
+  id: string; // e.g. "x_y_z"
+  x: number;
+  y: number; // 0..19
+  z: number;
+  material_id: number;
+  rotation_y?: number; // 0, 90, 180, 270
+}
+
 export interface PropData {
-  id: string;
+  id?: string;
   prefab_id: string;
   grid_x: number;
   grid_y: number;
+  grid_z?: number; // vertical voxel level (0..20, default 0)
+  snap_face?: SnapFace; // face attached to (default 'top')
   rotation_deg: number; // 0, 90, 180, 270
   tile_width?: number; // default 1
   tile_depth?: number; // default 1
@@ -208,20 +221,14 @@ export interface MapData {
   tile_height: number;
   width: number;
   height: number;
+  max_height?: number; // 20 tiles
   layers: {
     ground: number[];
     collision: number[];
     wall_materials?: number[];
   };
+  voxel_blocks?: VoxelBlockData[];
   spawners: Array<{ type: string; x: number; y: number }>;
   portals: Array<{ grid_x: number; grid_y: number; target_map_id: string; label: string }>;
-  props?: Array<{
-    prefab_id: string;
-    grid_x: number;
-    grid_y: number;
-    rotation_deg: number;
-    tile_width?: number;
-    tile_depth?: number;
-    scale_multiplier?: number;
-  }>;
+  props?: Array<PropData>;
 }

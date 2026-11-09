@@ -11,6 +11,7 @@ import type {
   PropData,
   FloorMaterialMeta,
   PropPrefabMeta,
+  VoxelBlockData,
 } from '../types/map.types';
 import { FLOOR_MATERIALS, PROP_PREFABS } from '../types/map.types';
 
@@ -43,6 +44,7 @@ interface MapState {
   groundLayer: number[];
   collisionLayer: number[];
   wallMaterialsLayer: number[];
+  voxelBlocks: Record<string, VoxelBlockData>; // key: "x_y_z"
   spawners: SpawnerData[];
   portals: PortalData[];
   props: PropData[];
@@ -68,25 +70,38 @@ interface MapState {
   selectedPropPrefab: string;
   selectedPropRotation: number;
   selectedEntity: {
-    type: 'prop' | 'tile' | 'spawner' | 'portal';
+    type: 'prop' | 'tile' | 'spawner' | 'portal' | 'block';
     x: number;
     y: number;
+    z?: number;
     data?: any;
   } | null;
+  selectedBlockId: string | null;
+  activeVoxelY: number; // 0..19 slice/focus level
+  setActiveVoxelY: (y: number) => void;
+  setVoxelBlock: (x: number, y: number, z: number, materialId: number, rotationY?: number) => void;
+  removeVoxelBlock: (x: number, y: number, z: number) => void;
+  rotateVoxelBlock: (x: number, y: number, z: number, deltaDeg?: number) => void;
+  updateVoxelBlockMaterial: (x: number, y: number, z: number, materialId: number) => void;
   portalTargetMapId: string;
   portalLabel: string;
   environmentTheme: EnvironmentTheme;
   isDragging: boolean;
 
+  movingPropId: string | null;
+  setMovingPropId: (id: string | null) => void;
+  movePropTo: (propId: string, targetX: number, targetY: number) => boolean;
+
   // Actions
   setMapMeta: (id: string, name: string) => void;
-  setDimensions: (width: number, height: number) => void;
+  setDimensions: (width: number, height: number, defaultFloorId?: number) => void;
   setActiveTool: (tool: ToolMode) => void;
   setSelectedEntity: (
     entity: {
-      type: 'prop' | 'tile' | 'spawner' | 'portal';
+      type: 'prop' | 'tile' | 'spawner' | 'portal' | 'block';
       x: number;
       y: number;
+      z?: number;
       data?: any;
     } | null
   ) => void;
@@ -132,6 +147,7 @@ const createCatacombsPreset = (): {
   groundLayer: number[];
   collisionLayer: number[];
   wallMaterialsLayer: number[];
+  voxelBlocks: Record<string, VoxelBlockData>; // key: "x_y_z"
   spawners: SpawnerData[];
   portals: PortalData[];
   props: PropData[];
@@ -188,6 +204,21 @@ const createCatacombsPreset = (): {
       { id: 'prop_c2', prefab_id: 'torch', grid_x: 10, grid_y: 5, rotation_deg: 0 },
       { id: 'prop_c3', prefab_id: 'chest', grid_x: 7, grid_y: 5, rotation_deg: 0 },
     ],
+    voxelBlocks: ((): Record<string, VoxelBlockData> => {
+      const vb: Record<string, VoxelBlockData> = {};
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = y * w + x;
+          const heightLvl = col[idx] ?? 0;
+          const mat = wallMaterials[idx] ?? 1;
+          for (let lvl = 0; lvl < heightLvl; lvl++) {
+            const k = `${x}_${lvl}_${y}`;
+            vb[k] = { id: k, x, y: lvl, z: y, material_id: mat, rotation_y: 0 };
+          }
+        }
+      }
+      return vb;
+    })(),
     environmentTheme: 'gothic_night',
   };
 };
@@ -200,6 +231,7 @@ const createMedievalRiverTownPreset = (): {
   groundLayer: number[];
   collisionLayer: number[];
   wallMaterialsLayer: number[];
+  voxelBlocks: Record<string, VoxelBlockData>; // key: "x_y_z"
   spawners: SpawnerData[];
   portals: PortalData[];
   props: PropData[];
@@ -342,6 +374,21 @@ const createMedievalRiverTownPreset = (): {
       },
     ],
     props,
+    voxelBlocks: ((): Record<string, VoxelBlockData> => {
+      const vb: Record<string, VoxelBlockData> = {};
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = y * w + x;
+          const heightLvl = col[idx] ?? 0;
+          const mat = wallMaterials[idx] ?? 2;
+          for (let lvl = 0; lvl < heightLvl; lvl++) {
+            const k = `${x}_${lvl}_${y}`;
+            vb[k] = { id: k, x, y: lvl, z: y, material_id: mat, rotation_y: 0 };
+          }
+        }
+      }
+      return vb;
+    })(),
     environmentTheme: 'medieval_day',
   };
 };
@@ -359,6 +406,10 @@ export const useMapStore = create<MapState>((set, get) => ({
   spawners: initialPreset.spawners,
   portals: initialPreset.portals,
   props: initialPreset.props,
+  voxelBlocks: (initialPreset as any).voxelBlocks ?? {},
+  selectedBlockId: null,
+  activeVoxelY: 0,
+  setActiveVoxelY: (y: number) => set({ activeVoxelY: Math.max(0, Math.min(19, Math.round(y))) }),
 
   activeTool: 'floor',
   dragPaintMode: 'brush',
@@ -452,11 +503,176 @@ export const useMapStore = create<MapState>((set, get) => ({
       };
     }),
 
+  movingPropId: null,
+  setMovingPropId: (id) => set({ movingPropId: id }),
+  movePropTo: (propId, targetX, targetY) => {
+    const { width, height, props, customProps, selectedEntity } = get();
+    const propToMove = props.find((p) => p.id === propId);
+    if (!propToMove) return false;
+
+    const allPropsMeta = [...customProps, ...PROP_PREFABS];
+    const meta = allPropsMeta.find((m) => m.id === propToMove.prefab_id);
+    const w = propToMove.tile_width ?? meta?.tileWidth ?? 1;
+    const d = propToMove.tile_depth ?? meta?.tileDepth ?? 1;
+
+    // Boundary check
+    if (targetX < 0 || targetX + w > width || targetY < 0 || targetY + d > height) {
+      return false;
+    }
+
+    // Check overlap with other props
+    const otherProps = props.filter((p) => p.id !== propId);
+    const overlaps = otherProps.some((p) => {
+      const otherMeta = allPropsMeta.find((m) => m.id === p.prefab_id);
+      const ow = p.tile_width ?? otherMeta?.tileWidth ?? 1;
+      const od = p.tile_depth ?? otherMeta?.tileDepth ?? 1;
+      return (
+        targetX < p.grid_x + ow &&
+        targetX + w > p.grid_x &&
+        targetY < p.grid_y + od &&
+        targetY + d > p.grid_y
+      );
+    });
+
+    if (overlaps) return false;
+
+    const updatedProps = props.map((p) =>
+      p.id === propId ? { ...p, grid_x: targetX, grid_y: targetY } : p
+    );
+
+    const nextSelectedEntity =
+      selectedEntity && selectedEntity.type === 'prop' && selectedEntity.data?.id === propId
+        ? {
+            ...selectedEntity,
+            x: targetX,
+            y: targetY,
+            data: { ...selectedEntity.data, grid_x: targetX, grid_y: targetY },
+          }
+        : selectedEntity;
+
+    set({
+      props: updatedProps,
+      selectedEntity: nextSelectedEntity,
+      movingPropId: null,
+    });
+    return true;
+  },
+
+  setVoxelBlock: (x, y, z, materialId, rotationY = 0) => {
+    const { width, height, voxelBlocks, collisionLayer, wallMaterialsLayer } = get();
+    if (x < 0 || x >= width || z < 0 || z >= height || y < 0 || y >= 20) return;
+    const blockKey = `${x}_${y}_${z}`;
+    const nextBlocks = {
+      ...voxelBlocks,
+      [blockKey]: {
+        id: blockKey,
+        x,
+        y,
+        z,
+        material_id: materialId,
+        rotation_y: rotationY,
+      },
+    };
+
+    // Sinkronisasi layer 2.5D untuk backward-compatibility jika y berada di tumpukan
+    const idx = z * width + x;
+    const nextCol = [...collisionLayer];
+    const nextWallMat = [...wallMaterialsLayer];
+    if (y >= (nextCol[idx] ?? 0)) {
+      nextCol[idx] = Math.min(20, y + 1);
+      nextWallMat[idx] = materialId;
+    }
+
+    set({
+      voxelBlocks: nextBlocks,
+      collisionLayer: nextCol,
+      wallMaterialsLayer: nextWallMat,
+    });
+  },
+
+  removeVoxelBlock: (x, y, z) => {
+    const { width, voxelBlocks, selectedBlockId, selectedEntity, collisionLayer } = get();
+    const blockKey = `${x}_${y}_${z}`;
+    if (!voxelBlocks[blockKey]) return;
+
+    const nextBlocks = { ...voxelBlocks };
+    delete nextBlocks[blockKey];
+
+    // Recalculate max height at (x, z) for 2.5D collisionLayer
+    let maxH = 0;
+    for (let checkY = 19; checkY >= 0; checkY--) {
+      if (nextBlocks[`${x}_${checkY}_${z}`]) {
+        maxH = checkY + 1;
+        break;
+      }
+    }
+    const idx = z * width + x;
+    const nextCol = [...collisionLayer];
+    nextCol[idx] = maxH;
+
+    const shouldClearSelection =
+      selectedBlockId === blockKey ||
+      (selectedEntity?.type === 'block' &&
+        selectedEntity.x === x &&
+        selectedEntity.y === z &&
+        selectedEntity.z === y);
+
+    set({
+      voxelBlocks: nextBlocks,
+      collisionLayer: nextCol,
+      selectedBlockId: shouldClearSelection ? null : selectedBlockId,
+      selectedEntity: shouldClearSelection ? null : selectedEntity,
+    });
+  },
+
+  rotateVoxelBlock: (x, y, z, deltaDeg = 90) => {
+    const { voxelBlocks } = get();
+    const blockKey = `${x}_${y}_${z}`;
+    const target = voxelBlocks[blockKey];
+    if (!target) return;
+
+    const currentRot = target.rotation_y ?? 0;
+    const newRot = (((currentRot + deltaDeg) % 360) + 360) % 360;
+
+    set({
+      voxelBlocks: {
+        ...voxelBlocks,
+        [blockKey]: {
+          ...target,
+          rotation_y: newRot,
+        },
+      },
+    });
+  },
+
+  updateVoxelBlockMaterial: (x, y, z, materialId) => {
+    const { voxelBlocks, wallMaterialsLayer, width } = get();
+    const blockKey = `${x}_${y}_${z}`;
+    const target = voxelBlocks[blockKey];
+    if (!target) return;
+
+    const nextWallMat = [...wallMaterialsLayer];
+    const idx = z * width + x;
+    nextWallMat[idx] = materialId;
+
+    set({
+      voxelBlocks: {
+        ...voxelBlocks,
+        [blockKey]: {
+          ...target,
+          material_id: materialId,
+        },
+      },
+      wallMaterialsLayer: nextWallMat,
+    });
+  },
+
   setMapMeta: (mapId, mapName) => set({ mapId, mapName }),
 
-  setDimensions: (width, height) =>
+  setDimensions: (width, height, defaultFloorId = 6) =>
     set((state) => {
-      const newGround = new Array(width * height).fill(6);
+      const fillFloor = defaultFloorId ?? 6;
+      const newGround = new Array(width * height).fill(fillFloor);
       const newCol = new Array(width * height).fill(0);
       const newWallMaterials = new Array(width * height).fill(0);
 
@@ -465,7 +681,7 @@ export const useMapStore = create<MapState>((set, get) => ({
           if (x < state.width && y < state.height) {
             const oldIdx = y * state.width + x;
             const newIdx = y * width + x;
-            newGround[newIdx] = state.groundLayer[oldIdx] ?? 6;
+            newGround[newIdx] = state.groundLayer[oldIdx] ?? fillFloor;
             newCol[newIdx] = state.collisionLayer[oldIdx] ?? 0;
             newWallMaterials[newIdx] = state.wallMaterialsLayer[oldIdx] ?? 0;
           }
@@ -497,7 +713,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   setSelectedWallType: (wallType) => set({ selectedWallType: wallType }),
   setWallStackMode: (wallStackMode) => set({ wallStackMode }),
   setSelectedWallHeight: (selectedWallHeight) =>
-    set({ selectedWallHeight: Math.max(1, Math.min(5, selectedWallHeight)) }),
+    set({ selectedWallHeight: Math.max(1, Math.min(20, selectedWallHeight)) }),
   setSelectedSpawnerType: (type) => set({ selectedSpawnerType: type }),
   setSelectedPropPrefab: (prefab) => set({ selectedPropPrefab: prefab }),
   setSelectedPropRotation: (deg) => set({ selectedPropRotation: ((deg % 360) + 360) % 360 }),
@@ -581,26 +797,66 @@ export const useMapStore = create<MapState>((set, get) => ({
       newCol[idx] = 0; // Painting floor clears block stack on that tile
       const newWallMaterials = [...wallMaterialsLayer];
       newWallMaterials[idx] = 0;
-      set({ groundLayer: newGround, collisionLayer: newCol, wallMaterialsLayer: newWallMaterials });
+
+      // Bersihkan juga voxelBlocks pada kolom x, y
+      const { voxelBlocks } = get();
+      const nextVoxelBlocks = { ...voxelBlocks };
+      for (let checkY = 0; checkY < 20; checkY++) {
+        delete nextVoxelBlocks[`${x}_${checkY}_${y}`];
+      }
+
+      set({
+        groundLayer: newGround,
+        collisionLayer: newCol,
+        wallMaterialsLayer: newWallMaterials,
+        voxelBlocks: nextVoxelBlocks,
+      });
     } else if (activeTool === 'wall') {
       const newCol = [...collisionLayer];
       const newWallMaterials = [...wallMaterialsLayer];
       const currentHeight = newCol[idx] ?? 0;
+      let targetHeight = 1;
 
       if (wallStackMode === 'increment') {
-        // Stack block higher (+1 per cell per stroke, capped at 5)
-        newCol[idx] = currentHeight >= 5 ? 5 : currentHeight + 1;
+        // Stack block higher (+1 per cell per stroke, capped at 20)
+        targetHeight = Math.min(20, currentHeight + 1);
+        newCol[idx] = targetHeight;
       } else {
-        newCol[idx] = selectedWallHeight;
+        targetHeight = Math.min(20, Math.max(1, selectedWallHeight));
+        newCol[idx] = targetHeight;
       }
       newWallMaterials[idx] = selectedWallType;
+
+      // Sinkronkan ke voxelBlocks
+      const { voxelBlocks } = get();
+      const nextVoxelBlocks = { ...voxelBlocks };
+      for (let lvl = 0; lvl < targetHeight; lvl++) {
+        const k = `${x}_${lvl}_${y}`;
+        if (!nextVoxelBlocks[k]) {
+          nextVoxelBlocks[k] = {
+            id: k,
+            x,
+            y: lvl,
+            z: y,
+            material_id: selectedWallType,
+            rotation_y: 0,
+          };
+        } else {
+          nextVoxelBlocks[k].material_id = selectedWallType;
+        }
+      }
 
       // Ensure there is a ground tile under stacked blocks
       const newGround = [...groundLayer];
       if ((newGround[idx] ?? 0) === 0) {
         newGround[idx] = 1;
       }
-      set({ collisionLayer: newCol, groundLayer: newGround, wallMaterialsLayer: newWallMaterials });
+      set({
+        collisionLayer: newCol,
+        groundLayer: newGround,
+        wallMaterialsLayer: newWallMaterials,
+        voxelBlocks: nextVoxelBlocks,
+      });
     } else if (activeTool === 'spawner') {
       const filtered = spawners.filter((s) => !(s.x === x && s.y === y));
       set({
@@ -626,7 +882,27 @@ export const useMapStore = create<MapState>((set, get) => ({
         ],
       });
     } else if (activeTool === 'prop') {
-      const filtered = props.filter((p) => !(p.grid_x === x && p.grid_y === y));
+      const allPropsMeta = [...get().customProps, ...PROP_PREFABS];
+      const targetMeta = allPropsMeta.find((p) => p.id === selectedPropPrefab);
+      const propW = targetMeta?.tileWidth || 1;
+      const propD = targetMeta?.tileDepth || 1;
+      const scaleMult = targetMeta?.scaleMultiplier || 1.0;
+
+      // Filter out props that overlap with this placement's footprint
+      const filtered = props.filter((p) => {
+        const otherMeta = allPropsMeta.find((meta) => meta.id === p.prefab_id);
+        const otherW = p.tile_width ?? otherMeta?.tileWidth ?? 1;
+        const otherD = p.tile_depth ?? otherMeta?.tileDepth ?? 1;
+
+        const overlaps =
+          x < p.grid_x + otherW &&
+          x + propW > p.grid_x &&
+          y < p.grid_y + otherD &&
+          y + propD > p.grid_y;
+
+        return !overlaps;
+      });
+
       set({
         props: [
           ...filtered,
@@ -636,6 +912,9 @@ export const useMapStore = create<MapState>((set, get) => ({
             grid_x: x,
             grid_y: y,
             rotation_deg: selectedPropRotation,
+            tile_width: propW,
+            tile_depth: propD,
+            scale_multiplier: scaleMult,
           },
         ],
       });
@@ -718,28 +997,55 @@ export const useMapStore = create<MapState>((set, get) => ({
     }
 
     if (activeTool === 'wall') {
+      const { voxelBlocks } = get();
+      const nextVoxelBlocks = { ...voxelBlocks };
       for (let y = minY; y <= maxY; y++) {
         for (let x = minX; x <= maxX; x++) {
           const idx = y * width + x;
           const current = newCol[idx] ?? 0;
+          let targetHeight = 1;
           if (isShiftKey) {
-            newCol[idx] = Math.max(0, current - 1);
-            if (newCol[idx] === 0) {
+            targetHeight = Math.max(0, current - 1);
+            newCol[idx] = targetHeight;
+            if (targetHeight === 0) {
               newWallMaterials[idx] = 0;
             }
+            delete nextVoxelBlocks[`${x}_${targetHeight}_${y}`];
           } else if (wallStackMode === 'increment') {
-            newCol[idx] = Math.min(5, current + 1);
+            targetHeight = Math.min(20, current + 1);
+            newCol[idx] = targetHeight;
             newWallMaterials[idx] = selectedWallType;
           } else {
-            newCol[idx] = selectedWallHeight;
+            targetHeight = Math.min(20, Math.max(1, selectedWallHeight));
+            newCol[idx] = targetHeight;
             newWallMaterials[idx] = selectedWallType;
           }
+
+          if (!isShiftKey) {
+            for (let lvl = 0; lvl < targetHeight; lvl++) {
+              const k = `${x}_${lvl}_${y}`;
+              nextVoxelBlocks[k] = {
+                id: k,
+                x,
+                y: lvl,
+                z: y,
+                material_id: selectedWallType,
+                rotation_y: 0,
+              };
+            }
+          }
+
           if ((newGround[idx] ?? 0) === 0 && (newCol[idx] ?? 0) > 0) {
             newGround[idx] = 1;
           }
         }
       }
-      set({ collisionLayer: newCol, groundLayer: newGround, wallMaterialsLayer: newWallMaterials });
+      set({
+        collisionLayer: newCol,
+        groundLayer: newGround,
+        wallMaterialsLayer: newWallMaterials,
+        voxelBlocks: nextVoxelBlocks,
+      });
       return;
     }
 
@@ -810,7 +1116,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   eraseAt: (x, y) => {
-    const { width, height, collisionLayer, wallMaterialsLayer, spawners, portals, props } = get();
+    const { width, height, collisionLayer, wallMaterialsLayer, spawners, portals, props, customProps } = get();
     if (x < 0 || x >= width || y < 0 || y >= height) return;
     const idx = y * width + x;
 
@@ -819,12 +1125,20 @@ export const useMapStore = create<MapState>((set, get) => ({
     newCol[idx] = 0;
     newWallMaterials[idx] = 0;
 
+    const allPropsMeta = [...customProps, ...PROP_PREFABS];
+
     set({
       collisionLayer: newCol,
       wallMaterialsLayer: newWallMaterials,
       spawners: spawners.filter((s) => !(s.x === x && s.y === y)),
       portals: portals.filter((p) => !(Math.round(p.grid_x) === x && Math.round(p.grid_y) === y)),
-      props: props.filter((p) => !(p.grid_x === x && p.grid_y === y)),
+      props: props.filter((p) => {
+        const meta = allPropsMeta.find((m) => m.id === p.prefab_id);
+        const w = p.tile_width ?? meta?.tileWidth ?? 1;
+        const d = p.tile_depth ?? meta?.tileDepth ?? 1;
+        const inside = x >= p.grid_x && x < p.grid_x + w && y >= p.grid_y && y < p.grid_y + d;
+        return !inside;
+      }),
     });
   },
 
@@ -886,6 +1200,34 @@ export const useMapStore = create<MapState>((set, get) => ({
       rotation_deg: pr.rotation_deg || 0,
     }));
 
+    // Inisialisasi atau migrasi voxel_blocks
+    const voxelBlocks: Record<string, VoxelBlockData> = {};
+    if (data.voxel_blocks && Array.isArray(data.voxel_blocks)) {
+      for (const vb of data.voxel_blocks) {
+        voxelBlocks[`${vb.x}_${vb.y}_${vb.z}`] = vb;
+      }
+    } else {
+      // Auto-migrate dari collisionLayer 2.5D
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = y * width + x;
+          const colHeight = collisionLayer[idx] ?? 0;
+          const matId = wallMaterialsLayer[idx] ?? 2;
+          for (let lvl = 0; lvl < colHeight; lvl++) {
+            const k = `${x}_${lvl}_${y}`;
+            voxelBlocks[k] = {
+              id: k,
+              x,
+              y: lvl,
+              z: y,
+              material_id: matId,
+              rotation_y: 0,
+            };
+          }
+        }
+      }
+    }
+
     set({
       mapId: data.map_id || 'imported_map',
       mapName: data.name || 'Unnamed Realm',
@@ -894,6 +1236,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       groundLayer,
       collisionLayer,
       wallMaterialsLayer,
+      voxelBlocks,
       spawners,
       portals,
       props,
@@ -909,11 +1252,13 @@ export const useMapStore = create<MapState>((set, get) => ({
       tile_height: 2,
       width: state.width,
       height: state.height,
+      max_height: 20,
       layers: {
         ground: state.groundLayer,
         collision: state.collisionLayer,
         wall_materials: state.wallMaterialsLayer,
       },
+      voxel_blocks: Object.values(state.voxelBlocks),
       spawners: state.spawners.map((s) => ({ type: s.type, x: s.x, y: s.y })),
       portals: state.portals.map((p) => ({
         grid_x: p.grid_x,
@@ -922,10 +1267,16 @@ export const useMapStore = create<MapState>((set, get) => ({
         label: p.label,
       })),
       props: state.props.map((pr) => ({
+        id: pr.id,
         prefab_id: pr.prefab_id,
         grid_x: pr.grid_x,
         grid_y: pr.grid_y,
+        grid_z: pr.grid_z ?? 0,
+        snap_face: pr.snap_face ?? 'top',
         rotation_deg: pr.rotation_deg,
+        tile_width: pr.tile_width,
+        tile_depth: pr.tile_depth,
+        scale_multiplier: pr.scale_multiplier,
       })),
     };
   },

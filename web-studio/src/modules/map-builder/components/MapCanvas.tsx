@@ -9,7 +9,8 @@ import { getFloorTexture, registerDynamicFloorTexture } from '../utils/procedura
 import { getBlob } from '@/lib/assetStorage';
 import { FLOOR_MATERIALS, PROP_PREFABS } from '../types/map.types';
 import { FloorTileMesh } from './FloorTileMesh';
-import { BlockStackMesh, STONE_BLOCK_HEIGHT } from './BlockStackMesh';
+import { STONE_BLOCK_HEIGHT } from './BlockStackMesh';
+import { VoxelBlockMesh } from './VoxelBlockMesh';
 import { PropMesh3D } from './MedievalProps3D';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -283,6 +284,8 @@ const WorldGridScene: React.FC = () => {
     groundLayer,
     collisionLayer,
     wallMaterialsLayer,
+    voxelBlocks,
+    selectedBlockId,
     spawners,
     portals,
     props,
@@ -325,21 +328,45 @@ const WorldGridScene: React.FC = () => {
 
       // V or Escape switches to Select / Pointer Tool
       if (key === 'v' || e.key === 'Escape') {
-        const { setActiveTool, setSelectedEntity } = useMapStore.getState();
+        const { setActiveTool, setSelectedEntity, setMovingPropId } = useMapStore.getState();
         setActiveTool('select');
+        setMovingPropId(null);
         if (e.key === 'Escape') {
           setSelectedEntity(null);
         }
         return;
       }
 
+      // Keyboard M: Toggle Move mode for selected prop
+      if (key === 'm') {
+        const { selectedEntity, movingPropId, setMovingPropId } = useMapStore.getState();
+        if (selectedEntity?.type === 'prop' && selectedEntity.data?.id) {
+          e.preventDefault();
+          setMovingPropId(movingPropId === selectedEntity.data.id ? null : selectedEntity.data.id);
+          return;
+        }
+      }
+
       // Delete or Backspace removes selected entity in Select mode
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const { activeTool, selectedEntity, eraseAt, setSelectedEntity } = useMapStore.getState();
+        const { activeTool, selectedEntity, eraseAt, removeVoxelBlock, setSelectedEntity } = useMapStore.getState();
         if (activeTool === 'select' && selectedEntity) {
           e.preventDefault();
-          eraseAt(selectedEntity.x, selectedEntity.y);
+          if (selectedEntity.type === 'block') {
+            removeVoxelBlock(selectedEntity.x, selectedEntity.z ?? 0, selectedEntity.y);
+          } else {
+            eraseAt(selectedEntity.x, selectedEntity.y);
+          }
           setSelectedEntity(null);
+          return;
+        }
+      }
+
+      if (key === 'r') {
+        const { activeTool, selectedEntity, rotateVoxelBlock: rotBlock } = useMapStore.getState();
+        if (activeTool === 'select' && selectedEntity?.type === 'block') {
+          e.preventDefault();
+          rotBlock(selectedEntity.x, selectedEntity.z ?? 0, selectedEntity.y, 90);
           return;
         }
       }
@@ -526,9 +553,27 @@ const WorldGridScene: React.FC = () => {
     if (!cell) return;
 
     if (activeTool === 'select') {
-      const existingProp = props.find((p) => p.grid_x === cell.x && p.grid_y === cell.y);
+      const { movingPropId, movePropTo, customProps } = useMapStore.getState();
+
+      // Jika sedang dalam mode Moving Prop, klik pada tile akan memindahkan prop terpilih ke tile ini
+      if (movingPropId) {
+        const success = movePropTo(movingPropId, cell.x, cell.y);
+        if (success) {
+          return;
+        }
+      }
+
+      const allPropsMeta = [...customProps, ...PROP_PREFABS];
+      // Cari prop yang menaungi tile ini (mendukung multi-tile footprint)
+      const existingProp = props.find((p) => {
+        const meta = allPropsMeta.find((m) => m.id === p.prefab_id);
+        const w = p.tile_width ?? meta?.tileWidth ?? 1;
+        const d = p.tile_depth ?? meta?.tileDepth ?? 1;
+        return cell.x >= p.grid_x && cell.x < p.grid_x + w && cell.y >= p.grid_y && cell.y < p.grid_y + d;
+      });
+
       const customMeta = existingProp
-        ? useMapStore.getState().customProps.find((cp) => cp.id === existingProp.prefab_id)
+        ? customProps.find((cp) => cp.id === existingProp.prefab_id)
         : null;
       const builtinMeta = existingProp
         ? PROP_PREFABS.find((bp) => bp.id === existingProp.prefab_id)
@@ -544,8 +589,8 @@ const WorldGridScene: React.FC = () => {
       if (existingProp) {
         setSelectedEntity({
           type: 'prop',
-          x: cell.x,
-          y: cell.y,
+          x: existingProp.grid_x,
+          y: existingProp.grid_y,
           data: {
             ...existingProp,
             prefabMeta: customMeta || builtinMeta,
@@ -701,7 +746,7 @@ const WorldGridScene: React.FC = () => {
         raycast={NOOP_RAYCAST}
       />
 
-      {/* Render All Textured Floor Tiles & Stacked Stone Blocks */}
+      {/* Render All Textured Floor Tiles */}
       {tiles.map((tile) => {
         const isRiver = tile.floorType === 7;
 
@@ -723,15 +768,44 @@ const WorldGridScene: React.FC = () => {
                 <meshStandardMaterial color="#0c4a6e" roughness={0.9} />
               </mesh>
             )}
+          </group>
+        );
+      })}
 
-            {/* Stackable Modular 3D Blocks (Level 1..5) */}
-            {tile.wallHeight > 0 && (
-              <BlockStackMesh
-                wallHeight={tile.wallHeight}
-                wallMaterial={tile.wallMaterial}
-                textureVersion={textureVersion}
-              />
-            )}
+      {/* Render All Modular 3D Voxel Blocks (Up to 20 Stack Height) */}
+      {Object.values(voxelBlocks).map((vb) => {
+        const posX = originX + vb.x * 2.0;
+        const posZ = originZ + vb.z * 2.0;
+        const isSelected =
+          (selectedBlockId === vb.id) ||
+          (selectedEntity?.type === 'block' &&
+            selectedEntity.x === vb.x &&
+            selectedEntity.y === vb.z &&
+            selectedEntity.z === vb.y);
+
+        return (
+          <group key={vb.id} position={[posX, 0, posZ]}>
+            <VoxelBlockMesh
+              x={vb.x}
+              y={vb.y}
+              z={vb.z}
+              materialId={vb.material_id}
+              rotationY={vb.rotation_y ?? 0}
+              isSelected={isSelected}
+              textureVersion={textureVersion}
+              onClick={(e: any) => {
+                if (activeTool === 'select') {
+                  e.stopPropagation();
+                  setSelectedEntity({
+                    type: 'block',
+                    x: vb.x,
+                    y: vb.z,
+                    z: vb.y,
+                    data: vb,
+                  });
+                }
+              }}
+            />
           </group>
         );
       })}
@@ -842,16 +916,52 @@ const WorldGridScene: React.FC = () => {
                 </group>
 
                 {/* Render Ghost Prop only if there isn't already a placed prop here and not in select mode */}
-                {!hoveredProp && activeTool !== 'select' && (
-                  <PropMesh3D
-                    prefabId={selectedPropPrefab}
-                    modelUrl={
-                      useMapStore
-                        .getState()
-                        .customProps.find((p) => p.id === selectedPropPrefab)?.modelUrl
-                    }
-                  />
-                )}
+                {!hoveredProp && activeTool !== 'select' && (() => {
+                  const allMeta = [...useMapStore.getState().customProps, ...PROP_PREFABS];
+                  const curMeta = allMeta.find((p) => p.id === selectedPropPrefab);
+                  const pW = curMeta?.tileWidth || 1;
+                  const pD = curMeta?.tileDepth || 1;
+                  const pScale = curMeta?.scaleMultiplier || 1.0;
+                  return (
+                    <group position={[(pW - 1) * 1.0, 0, (pD - 1) * 1.0]}>
+                      <PropMesh3D
+                        prefabId={selectedPropPrefab}
+                        modelUrl={curMeta?.modelUrl}
+                        tileWidth={pW}
+                        tileDepth={pD}
+                        scaleMultiplier={pScale}
+                      />
+                    </group>
+                  );
+                })()}
+
+                {/* Render Ghost Moving Prop if in Move Mode */}
+                {activeTool === 'select' && useMapStore.getState().movingPropId && (() => {
+                  const mId = useMapStore.getState().movingPropId;
+                  const targetProp = props.find((p) => p.id === mId);
+                  if (!targetProp) return null;
+                  const allMeta = [...useMapStore.getState().customProps, ...PROP_PREFABS];
+                  const pMeta = allMeta.find((p) => p.id === targetProp.prefab_id);
+                  const pW = targetProp.tile_width ?? pMeta?.tileWidth ?? 1;
+                  const pD = targetProp.tile_depth ?? pMeta?.tileDepth ?? 1;
+                  const pScale = targetProp.scale_multiplier ?? pMeta?.scaleMultiplier ?? 1.0;
+
+                  return (
+                    <group position={[(pW - 1) * 1.0, 0, (pD - 1) * 1.0]}>
+                      <PropMesh3D
+                        prefabId={targetProp.prefab_id}
+                        modelUrl={pMeta?.modelUrl}
+                        tileWidth={pW}
+                        tileDepth={pD}
+                        scaleMultiplier={pScale}
+                      />
+                      <mesh position={[0, 0.5, 0]} raycast={NOOP_RAYCAST}>
+                        <boxGeometry args={[pW * 2.0 - 0.08, 1.2, pD * 2.0 - 0.08]} />
+                        <meshBasicMaterial color="#f59e0b" wireframe />
+                      </mesh>
+                    </group>
+                  );
+                })()}
               </group>
             </group>
           )}
@@ -915,29 +1025,44 @@ const WorldGridScene: React.FC = () => {
       {props.map((prop) => {
         const idx = prop.grid_y * width + prop.grid_x;
         const stackBaseY = (collisionLayer[idx] ?? 0) * STONE_BLOCK_HEIGHT;
-        const customMeta = useMapStore.getState().customProps.find((p) => p.id === prop.prefab_id);
+        const allMeta = [...useMapStore.getState().customProps, ...PROP_PREFABS];
+        const propMeta = allMeta.find((p) => p.id === prop.prefab_id);
+        const tileW = prop.tile_width ?? propMeta?.tileWidth ?? 1;
+        const tileD = prop.tile_depth ?? propMeta?.tileDepth ?? 1;
+        const scaleMult = prop.scale_multiplier ?? propMeta?.scaleMultiplier ?? 1.0;
+
         const isSelected =
           activeTool === 'select' &&
           selectedEntity?.type === 'prop' &&
           selectedEntity.x === prop.grid_x &&
           selectedEntity.y === prop.grid_y;
 
+        // Hitung offset agar model berada tepat di tengah area (tileW x tileD)
+        const centerOffsetX = (tileW - 1) * 1.0;
+        const centerOffsetZ = (tileD - 1) * 1.0;
+
         return (
           <group
             key={prop.id}
             position={[
-              originX + prop.grid_x * 2.0,
+              originX + prop.grid_x * 2.0 + centerOffsetX,
               stackBaseY,
-              originZ + prop.grid_y * 2.0,
+              originZ + prop.grid_y * 2.0 + centerOffsetZ,
             ]}
             rotation={[0, (prop.rotation_deg * Math.PI) / 180, 0]}
           >
-            <PropMesh3D prefabId={prop.prefab_id} modelUrl={customMeta?.modelUrl} />
+            <PropMesh3D
+              prefabId={prop.prefab_id}
+              modelUrl={propMeta?.modelUrl}
+              tileWidth={tileW}
+              tileDepth={tileD}
+              scaleMultiplier={scaleMult}
+            />
 
             {/* Selection Bounding Box Highlight when selected in Select Tool */}
             {isSelected && (
               <mesh position={[0, 0.5, 0]} raycast={NOOP_RAYCAST}>
-                <boxGeometry args={[1.9, 1.2, 1.9]} />
+                <boxGeometry args={[tileW * 2.0 - 0.08, 1.2, tileD * 2.0 - 0.08]} />
                 <meshBasicMaterial color="#38bdf8" wireframe />
               </mesh>
             )}

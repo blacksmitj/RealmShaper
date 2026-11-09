@@ -8,9 +8,14 @@ import {
   getStoneWallTexture,
 } from '../utils/proceduralTextures';
 
+import * as THREE from 'three';
+
 interface PropMesh3DProps {
   prefabId: string;
   modelUrl?: string;
+  tileWidth?: number;
+  tileDepth?: number;
+  scaleMultiplier?: number;
 }
 
 class PropErrorBoundary extends React.Component<
@@ -38,13 +43,45 @@ class PropErrorBoundary extends React.Component<
   }
 }
 
-const DynamicGlbProp: React.FC<{ url: string }> = ({ url }) => {
+const DynamicGlbProp: React.FC<{
+  url: string;
+  tileWidth: number;
+  tileDepth: number;
+  scaleMultiplier: number;
+}> = ({ url, tileWidth, tileDepth, scaleMultiplier }) => {
   const { scene } = useGLTF(url);
-  const clonedScene = useMemo(() => scene.clone(true), [scene]);
+  const clonedScene = useMemo(() => {
+    const clone = scene.clone(true);
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = box.getSize(new THREE.Vector3());
+    const maxHorizontalDim = Math.max(size.x, size.z, 0.001);
+
+    // 1 Tile = 2.0 meter/unit di MapCanvas
+    // Target ukuran horizontal adalah min(tileWidth, tileDepth) * 2.0 * margin(0.95)
+    const targetSize = Math.max(tileWidth, tileDepth) * 2.0 * 0.95;
+    const baseFitScale = targetSize / maxHorizontalDim;
+    const finalScale = baseFitScale * scaleMultiplier;
+
+    // Center pivot horizontal model
+    const center = box.getCenter(new THREE.Vector3());
+    clone.position.x = -center.x * finalScale;
+    clone.position.z = -center.z * finalScale;
+    clone.position.y = -box.min.y * finalScale; // Alas duduk rata di tanah
+
+    clone.scale.set(finalScale, finalScale, finalScale);
+    return clone;
+  }, [scene, tileWidth, tileDepth, scaleMultiplier]);
+
   return <primitive object={clonedScene} />;
 };
 
-export const PropMesh3D: React.FC<PropMesh3DProps> = ({ prefabId, modelUrl }) => {
+export const PropMesh3D: React.FC<PropMesh3DProps> = ({
+  prefabId,
+  modelUrl,
+  tileWidth = 1,
+  tileDepth = 1,
+  scaleMultiplier = 1.0,
+}) => {
   const tudorWallTex = useMemo(() => getTudorWallTexture(), []);
   const roofTex = useMemo(() => getRoofShingleTexture(), []);
   const woodTex = useMemo(() => getWoodPlankTexture(), []);
@@ -56,7 +93,7 @@ export const PropMesh3D: React.FC<PropMesh3DProps> = ({ prefabId, modelUrl }) =>
       <PropErrorBoundary
         fallback={
           <mesh position={[0, 0.5, 0]}>
-            <boxGeometry args={[1, 1, 1]} />
+            <boxGeometry args={[tileWidth * 1.8, 1, tileDepth * 1.8]} />
             <meshStandardMaterial color="#ef4444" roughness={0.8} />
           </mesh>
         }
@@ -64,12 +101,17 @@ export const PropMesh3D: React.FC<PropMesh3DProps> = ({ prefabId, modelUrl }) =>
         <React.Suspense
           fallback={
             <mesh position={[0, 0.5, 0]}>
-              <boxGeometry args={[1, 1, 1]} />
+              <boxGeometry args={[tileWidth * 1.8, 1, tileDepth * 1.8]} />
               <meshStandardMaterial color="#6366f1" wireframe />
             </mesh>
           }
         >
-          <DynamicGlbProp url={modelUrl} />
+          <DynamicGlbProp
+            url={modelUrl}
+            tileWidth={tileWidth}
+            tileDepth={tileDepth}
+            scaleMultiplier={scaleMultiplier}
+          />
         </React.Suspense>
       </PropErrorBoundary>
     );

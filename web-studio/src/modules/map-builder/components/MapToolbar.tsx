@@ -17,6 +17,7 @@ import {
   CloudUpload,
   Loader2,
   CheckCircle2,
+  Settings,
 } from 'lucide-react';
 import { usePublishAsset } from '@/hooks/usePgcQueries';
 import { useMapStore } from '../stores/mapStore';
@@ -33,6 +34,7 @@ import { packGlbWithTexture } from '@/lib/glbPacker';
 import { uploadPgcAsset } from '@/lib/pgcService';
 import { registerDynamicFloorTexture } from '../utils/proceduralTextures';
 import { FloatingPaletteWindow } from './FloatingPaletteWindow';
+import { FloatingMapSettingsWindow } from './FloatingMapSettingsWindow';
 import { TexturePreviewViewport } from './TexturePreviewViewport';
 import { storeBlob, deleteBlob } from '@/lib/assetStorage';
 
@@ -96,6 +98,12 @@ export const MapToolbar: React.FC = () => {
     resetMap,
     mapId,
     mapName,
+    activeVoxelY,
+    setActiveVoxelY,
+    rotateVoxelBlock,
+    removeVoxelBlock,
+    updateVoxelBlockMaterial,
+    voxelBlocks,
     setMapMeta,
     customProps,
     customFloors,
@@ -103,15 +111,22 @@ export const MapToolbar: React.FC = () => {
     removeCustomProp,
     addCustomFloor,
     removeCustomFloor,
+    updatePropConfig,
+    movingPropId,
+    setMovingPropId,
   } = useMapStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [mapSettingsOpen, setMapSettingsOpen] = useState(false);
 
   // Upload Prop Dialog
   const [uploadPropOpen, setUploadPropOpen] = useState(false);
   const [propNameInput, setPropNameInput] = useState('');
   const [propDescInput, setPropDescInput] = useState('');
+  const [propTileWidth, setPropTileWidth] = useState<number>(1);
+  const [propTileDepth, setPropTileDepth] = useState<number>(1);
+  const [propScaleMultiplier, setPropScaleMultiplier] = useState<number>(1.0);
   const [propFile, setPropFile] = useState<File | null>(null);
   const [propTextureFile, setPropTextureFile] = useState<File | null>(null);
   const [propThumbPreview, setPropThumbPreview] = useState<string | null>(null);
@@ -264,6 +279,9 @@ export const MapToolbar: React.FC = () => {
         modelUrl: remoteUrl,
         thumbnailUrl: propThumbPreview || undefined,
         assetId,
+        tileWidth: propTileWidth,
+        tileDepth: propTileDepth,
+        scaleMultiplier: propScaleMultiplier,
       };
 
       addCustomProp(newProp);
@@ -272,6 +290,9 @@ export const MapToolbar: React.FC = () => {
       setPropTextureFile(null);
       setPropNameInput('');
       setPropDescInput('');
+      setPropTileWidth(1);
+      setPropTileDepth(1);
+      setPropScaleMultiplier(1.0);
       setPropThumbPreview(null);
     } catch (err) {
       console.error('Failed to submit custom prop', err);
@@ -434,9 +455,24 @@ export const MapToolbar: React.FC = () => {
                 3D Map Architect
               </h2>
             </div>
-            <Badge variant="outline" className="border-slate-800 text-[10px] text-slate-400 font-mono">
-              {width}x{height} Grid
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant={mapSettingsOpen ? 'secondary' : 'outline'}
+                size="icon"
+                onClick={() => setMapSettingsOpen((prev) => !prev)}
+                className={`w-7 h-7 rounded-md transition-all ${
+                  mapSettingsOpen
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm shadow-amber-500/20'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+                title="Open Map Settings (Name, Dimensions, Theme)"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </Button>
+              <Badge variant="outline" className="border-slate-800 text-[10px] text-slate-400 font-mono">
+                {width}x{height}
+              </Badge>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -523,6 +559,25 @@ export const MapToolbar: React.FC = () => {
                   </Button>
                 </div>
               </div>
+
+              {/* Voxel Height Focus / Slice Level Slider (0..19) */}
+              <div className="pt-2 space-y-1.5 p-2 rounded bg-slate-900/40 border border-slate-800/80">
+                <div className="flex items-center justify-between text-[11px]">
+                  <Label className="text-slate-400 font-medium">Vertical Slice (Y Level)</Label>
+                  <span className="font-mono text-cyan-300 font-bold">Lvl {activeVoxelY} / 19</span>
+                </div>
+                <Slider
+                  min={0}
+                  max={19}
+                  step={1}
+                  value={[activeVoxelY]}
+                  onValueChange={(val) => {
+                    const nextVal = Array.isArray(val) ? val[0] : val;
+                    if (nextVal != null) setActiveVoxelY(nextVal);
+                  }}
+                  className="py-1"
+                />
+              </div>
             </div>
 
             {/* TOOL CONTEXT: Select / Pointer Inspector */}
@@ -551,42 +606,207 @@ export const MapToolbar: React.FC = () => {
                       </span>
                     </div>
 
-                    {selectedEntity.type === 'prop' && selectedEntity.data && (
-                      <div className="space-y-1.5 pt-1 border-t border-slate-800/80">
-                        <div className="text-xs text-slate-200 font-medium">
-                          {selectedEntity.data.prefabMeta?.name || selectedEntity.data.prefab_id}
+                    {selectedEntity.type === 'prop' && selectedEntity.data && (() => {
+                      const propId = selectedEntity.data.id;
+                      const currentW = selectedEntity.data.tile_width ?? selectedEntity.data.prefabMeta?.tileWidth ?? 1;
+                      const currentD = selectedEntity.data.tile_depth ?? selectedEntity.data.prefabMeta?.tileDepth ?? 1;
+                      const currentScale = selectedEntity.data.scale_multiplier ?? selectedEntity.data.prefabMeta?.scaleMultiplier ?? 1.0;
+
+                      return (
+                        <div className="space-y-2 pt-1 border-t border-slate-800/80">
+                          <div className="text-xs text-slate-200 font-medium">
+                            {selectedEntity.data.prefabMeta?.name || selectedEntity.data.prefab_id}
+                          </div>
+
+                          {/* Quick Footprint Size Selector */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="text-slate-400">Tile Footprint:</span>
+                              <span className="font-mono text-cyan-300 font-bold">
+                                {currentW}x{currentD} Tile
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-4 gap-1">
+                              {[
+                                { label: '1x1', w: 1, d: 1 },
+                                { label: '2x2', w: 2, d: 2 },
+                                { label: '3x3', w: 3, d: 3 },
+                                { label: '4x4', w: 4, d: 4 },
+                              ].map((preset) => (
+                                <Button
+                                  key={preset.label}
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (propId) {
+                                      updatePropConfig(propId, {
+                                        tile_width: preset.w,
+                                        tile_depth: preset.d,
+                                      });
+                                    }
+                                  }}
+                                  className={`h-5 text-[9px] px-1 ${
+                                    currentW === preset.w && currentD === preset.d
+                                      ? 'bg-cyan-600/30 border-cyan-400 text-cyan-200 font-bold'
+                                      : 'border-slate-800 text-slate-400 hover:text-slate-200'
+                                  }`}
+                                >
+                                  {preset.label}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Fine-tune Scale Slider */}
+                          <div className="space-y-1 pt-0.5">
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="text-slate-400">Scale Fit:</span>
+                              <span className="font-mono text-cyan-300 font-bold">
+                                {currentScale.toFixed(2)}x
+                              </span>
+                            </div>
+                            <Slider
+                              min={0.5}
+                              max={2.5}
+                              step={0.05}
+                              value={[currentScale]}
+                              onValueChange={(val) => {
+                                const nextVal = Array.isArray(val) ? val[0] : val;
+                                if (typeof nextVal === 'number' && propId) {
+                                  updatePropConfig(propId, {
+                                    scale_multiplier: Number(nextVal.toFixed(2)),
+                                  });
+                                }
+                              }}
+                              className="py-1 cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] text-slate-400">
+                            <span>Rotation:</span>
+                            <span className="font-mono text-cyan-300 font-bold">
+                              {selectedEntity.data.rotation_deg}°
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                if (propId) {
+                                  setMovingPropId(movingPropId === propId ? null : propId);
+                                }
+                              }}
+                              className={`h-6 text-[10px] flex-1 gap-1 border ${
+                                movingPropId === propId
+                                  ? 'bg-amber-500/20 border-amber-400 text-amber-200 animate-pulse font-bold'
+                                  : 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
+                              }`}
+                            >
+                              <MousePointer className="w-3 h-3" />
+                              {movingPropId === propId ? 'Klik Tile Tujuan...' : 'Move (M)'}
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => rotateSelectedProp(90)}
+                              className="h-6 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-200 gap-1 px-2"
+                            >
+                              <RotateCw className="w-3 h-3" />
+                              (R)
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                eraseAt(selectedEntity.x, selectedEntity.y);
+                                setSelectedEntity(null);
+                              }}
+                              className="h-6 text-[10px] px-2 bg-red-950/80 hover:bg-red-900 text-red-200 border border-red-800"
+                            >
+                              <Eraser className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between text-[10px] text-slate-400">
-                          <span>Rotation:</span>
-                          <span className="font-mono text-cyan-300 font-bold">
-                            {selectedEntity.data.rotation_deg}°
-                          </span>
+                      );
+                    })()}
+
+                    {selectedEntity.type === 'block' && (() => {
+                      const bKey = `${selectedEntity.x}_${selectedEntity.z ?? selectedEntity.y}_${selectedEntity.y}`;
+                      const block = voxelBlocks[bKey];
+                      const matId = block?.material_id ?? selectedWallType;
+                      const rot = block?.rotation_y ?? 0;
+                      const yLvl = selectedEntity.z ?? 0;
+
+                      return (
+                        <div className="space-y-2 pt-1 border-t border-slate-800/80">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="text-slate-400">Elevation (Height Level):</span>
+                            <span className="font-mono text-amber-300 font-bold">
+                              Lvl {yLvl} ({(yLvl * 1.15).toFixed(2)}m)
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="text-slate-400">Orientation:</span>
+                            <span className="font-mono text-cyan-300 font-bold">{rot}°</span>
+                          </div>
+
+                          {/* Quick Material Change */}
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-slate-400">Ganti Material Block:</Label>
+                            <Select
+                              value={String(matId)}
+                              onValueChange={(val) => {
+                                updateVoxelBlockMaterial(
+                                  selectedEntity.x,
+                                  yLvl,
+                                  selectedEntity.y,
+                                  Number(val)
+                                );
+                              }}
+                            >
+                              <SelectTrigger className="h-7 text-xs bg-slate-900 border-slate-700">
+                                <SelectValue placeholder="Pilih Material" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-slate-900 border-slate-700 text-slate-200">
+                                {FLOOR_MATERIALS.map((mat) => (
+                                  <SelectItem key={mat.id} value={String(mat.id)} className="text-xs">
+                                    {mat.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Action Buttons: Rotate & Delete */}
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                rotateVoxelBlock(selectedEntity.x, yLvl, selectedEntity.y, 90);
+                              }}
+                              className="h-6 text-[10px] px-2 gap-1 border-slate-700 hover:text-cyan-300"
+                            >
+                              <RotateCw className="w-3 h-3" />
+                              Putar 90° (R)
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                removeVoxelBlock(selectedEntity.x, yLvl, selectedEntity.y);
+                              }}
+                              className="h-6 text-[10px] px-2 bg-red-950/80 hover:bg-red-900 text-red-200 border border-red-800"
+                            >
+                              <Eraser className="w-3 h-3" />
+                              Hapus (Del)
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5 pt-1">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => rotateSelectedProp(90)}
-                            className="h-6 text-[10px] flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 gap-1"
-                          >
-                            <RotateCw className="w-3 h-3" />
-                            Rotate (R)
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              eraseAt(selectedEntity.x, selectedEntity.y);
-                              setSelectedEntity(null);
-                            }}
-                            className="h-6 text-[10px] px-2 bg-red-950/80 hover:bg-red-900 text-red-200 border border-red-800"
-                          >
-                            <Eraser className="w-3 h-3" />
-                            Hapus
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {selectedEntity.type === 'tile' && selectedEntity.data && (
                       <div className="space-y-1 pt-1 border-t border-slate-800/80 text-[10px]">
@@ -799,13 +1019,14 @@ export const MapToolbar: React.FC = () => {
                 ) : (
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <Label className="text-[11px] text-slate-400">Target Height</Label>
+                      <Label className="text-[11px] text-slate-400">Target Height (Max 20)</Label>
                       <Badge variant="outline" className="border-amber-700 text-amber-300 font-mono text-[10px]">
                         {selectedWallHeight}x ({(selectedWallHeight * 1.15).toFixed(1)}m)
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-5 gap-1">
-                      {[1, 2, 3, 4, 5].map((lvl) => (
+                    {/* Quick presets for common building heights */}
+                    <div className="grid grid-cols-6 gap-1">
+                      {[1, 2, 3, 5, 10, 20].map((lvl) => (
                         <Button
                           key={lvl}
                           variant={selectedWallHeight === lvl ? 'secondary' : 'outline'}
@@ -820,6 +1041,19 @@ export const MapToolbar: React.FC = () => {
                           {lvl}x
                         </Button>
                       ))}
+                    </div>
+                    {/* Continuous slider for precise 1..20 stack height */}
+                    <div className="pt-1">
+                      <Slider
+                        min={1}
+                        max={20}
+                        step={1}
+                        value={[selectedWallHeight]}
+                        onValueChange={(val) => {
+                          const nextVal = Array.isArray(val) ? val[0] : val;
+                          if (nextVal != null) setSelectedWallHeight(nextVal);
+                        }}
+                      />
                     </div>
                   </div>
                 )}
@@ -1027,6 +1261,45 @@ export const MapToolbar: React.FC = () => {
                   placeholder="e.g. Ancient guardian statue from ruins"
                   className="mt-1 h-8 bg-slate-950 border-slate-800 text-xs"
                 />
+              </div>
+
+              {/* Multi-tile Footprint Selector */}
+              <div className="space-y-1.5 p-2.5 rounded-lg border border-slate-800 bg-slate-950">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-slate-300">Default Footprint Luas Tile</Label>
+                  <Badge variant="outline" className="border-cyan-500/50 text-cyan-300 font-mono text-[10px]">
+                    {propTileWidth} x {propTileDepth} Tile
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: '1x1 (Standard)', w: 1, d: 1 },
+                    { label: '2x2 (Sedang)', w: 2, d: 2 },
+                    { label: '3x3 (Besar)', w: 3, d: 3 },
+                    { label: '4x4 (Raksasa)', w: 4, d: 4 },
+                  ].map((preset) => (
+                    <Button
+                      key={preset.label}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setPropTileWidth(preset.w);
+                        setPropTileDepth(preset.d);
+                      }}
+                      className={`h-7 text-[10px] px-1 ${
+                        propTileWidth === preset.w && propTileDepth === preset.d
+                          ? 'bg-cyan-600/30 border-cyan-400 text-cyan-200 font-bold'
+                          : 'border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  Model 3D otomatis disesuaikan (auto-scale) agar pas menempati luas tile yang dipilih.
+                </p>
               </div>
             </div>
 
@@ -1257,6 +1530,12 @@ export const MapToolbar: React.FC = () => {
             name: item.name,
           })
         }
+      />
+
+      {/* Floating Draggable Map Settings Window */}
+      <FloatingMapSettingsWindow
+        isOpen={mapSettingsOpen}
+        onClose={() => setMapSettingsOpen(false)}
       />
     </TooltipProvider>
   );
