@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useGLTF } from '@react-three/drei';
 import {
   getTudorWallTexture,
   getRoofShingleTexture,
@@ -9,14 +10,70 @@ import {
 
 interface PropMesh3DProps {
   prefabId: string;
+  modelUrl?: string;
 }
 
-export const PropMesh3D: React.FC<PropMesh3DProps> = ({ prefabId }) => {
+class PropErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn('[PropMesh3D] Gagal memuat model 3D custom, menampilkan fallback:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+const DynamicGlbProp: React.FC<{ url: string }> = ({ url }) => {
+  const { scene } = useGLTF(url);
+  const clonedScene = useMemo(() => scene.clone(true), [scene]);
+  return <primitive object={clonedScene} />;
+};
+
+export const PropMesh3D: React.FC<PropMesh3DProps> = ({ prefabId, modelUrl }) => {
   const tudorWallTex = useMemo(() => getTudorWallTexture(), []);
   const roofTex = useMemo(() => getRoofShingleTexture(), []);
   const woodTex = useMemo(() => getWoodPlankTexture(), []);
   const canopyTex = useMemo(() => getCanopyStripeTexture(), []);
   const stoneTex = useMemo(() => getStoneWallTexture(), []);
+
+  if (modelUrl) {
+    return (
+      <PropErrorBoundary
+        fallback={
+          <mesh position={[0, 0.5, 0]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshStandardMaterial color="#ef4444" roughness={0.8} />
+          </mesh>
+        }
+      >
+        <React.Suspense
+          fallback={
+            <mesh position={[0, 0.5, 0]}>
+              <boxGeometry args={[1, 1, 1]} />
+              <meshStandardMaterial color="#6366f1" wireframe />
+            </mesh>
+          }
+        >
+          <DynamicGlbProp url={modelUrl} />
+        </React.Suspense>
+      </PropErrorBoundary>
+    );
+  }
 
   switch (prefabId) {
     case 'oak_tree':

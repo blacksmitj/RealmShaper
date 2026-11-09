@@ -1,11 +1,15 @@
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useRef, useState, useMemo, useEffect, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { Sun, Moon, Layers, RotateCw, Paintbrush, SquareDashed } from 'lucide-react';
+import { Sun, Moon, Layers, RotateCw, RotateCcw, Paintbrush, SquareDashed, MousePointer } from 'lucide-react';
 import { useMapStore } from '../stores/mapStore';
-import { getFloorTexture, getStoneWallTexture } from '../utils/proceduralTextures';
+import { getFloorTexture, registerDynamicFloorTexture } from '../utils/proceduralTextures';
+import { getBlob } from '@/lib/assetStorage';
+import { FLOOR_MATERIALS, PROP_PREFABS } from '../types/map.types';
+import { FloorTileMesh } from './FloorTileMesh';
+import { BlockStackMesh, STONE_BLOCK_HEIGHT } from './BlockStackMesh';
 import { PropMesh3D } from './MedievalProps3D';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +26,18 @@ interface HoveredCell {
   y: number;
 }
 
-const STONE_BLOCK_HEIGHT = 1.15;
+const getCompassDirectionLabel = (deg: number): string => {
+  const normalized = ((deg % 360) + 360) % 360;
+  if (normalized >= 337.5 || normalized < 22.5) return 'South (+Z)';
+  if (normalized >= 22.5 && normalized < 67.5) return 'South-West';
+  if (normalized >= 67.5 && normalized < 112.5) return 'West (+X)';
+  if (normalized >= 112.5 && normalized < 157.5) return 'North-West';
+  if (normalized >= 157.5 && normalized < 202.5) return 'North (-Z)';
+  if (normalized >= 202.5 && normalized < 247.5) return 'North-East';
+  if (normalized >= 247.5 && normalized < 292.5) return 'East (-X)';
+  return 'South-East';
+};
+
 const GROUND_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const TEMP_INTERSECT = new THREE.Vector3();
 const NOOP_RAYCAST = () => null;
@@ -32,6 +47,7 @@ export const MapCanvas: React.FC = () => {
     environmentTheme,
     setEnvironmentTheme,
     activeTool,
+    setActiveTool,
     dragPaintMode,
     setDragPaintMode,
     wallStackMode,
@@ -104,7 +120,9 @@ export const MapCanvas: React.FC = () => {
           }}
         />
 
-        <WorldGridScene />
+        <Suspense fallback={null}>
+          <WorldGridScene />
+        </Suspense>
       </Canvas>
 
       {/* Top-Left Viewport Instructions Overlay */}
@@ -127,10 +145,32 @@ export const MapCanvas: React.FC = () => {
         <p className="text-[11px] text-slate-400">
           <strong className="text-amber-300">Right Click + Drag:</strong> Orbit Rotate Camera
         </p>
+        {activeTool === 'prop' && (
+          <div className="pt-1 mt-1 border-t border-slate-800 text-[11px] text-cyan-300">
+            <strong className="text-white">Q / E (or R):</strong> Rotate Prop (±90°, Shift: ±45°) |{' '}
+            <strong className="text-slate-200">Alt + Scroll:</strong> Quick Spin
+          </div>
+        )}
       </div>
 
       {/* Top-Right Drag Mode, Tool Context & Lighting Bar */}
       <div className="absolute top-4 right-4 flex items-center gap-2 bg-slate-950/85 backdrop-blur-md border border-slate-800 rounded-lg p-1.5 shadow-xl">
+        {/* Pointer / Select Tool Trigger */}
+        <Button
+          variant={activeTool === 'select' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTool('select')}
+          title="Select / Cursor Mode [V / Esc]"
+          className={`h-7 px-2.5 text-xs gap-1.5 ${
+            activeTool === 'select'
+              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-medium'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <MousePointer className="w-3.5 h-3.5" />
+          <span>Select (V)</span>
+        </Button>
+
         {/* Brush vs Box Area Fill Toggle */}
         <div className="flex items-center gap-1 pr-2 border-r border-slate-800">
           <Button
@@ -176,15 +216,34 @@ export const MapCanvas: React.FC = () => {
         )}
 
         {activeTool === 'prop' && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={rotateSelectedProp}
-            className="h-7 px-2.5 text-xs bg-slate-900 border-slate-700 text-cyan-300 hover:bg-slate-800 gap-1.5"
-          >
-            <RotateCw className="w-3.5 h-3.5" />
-            <span>Rotate ({selectedPropRotation}°)</span>
-          </Button>
+          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded-lg p-0.5 shadow-sm">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => rotateSelectedProp(-90)}
+              title="Putar Kiri (-90°) [Q] (Shift: -45°)"
+              className="h-7 w-7 p-0 text-slate-400 hover:text-cyan-300 hover:bg-slate-800"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </Button>
+            <div className="flex flex-col items-center px-1.5 min-w-[56px] select-none">
+              <span className="text-[11px] font-mono font-bold text-cyan-300 leading-none">
+                {selectedPropRotation}°
+              </span>
+              <span className="text-[8px] font-mono text-slate-400 leading-none mt-0.5">
+                {getCompassDirectionLabel(selectedPropRotation)}
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => rotateSelectedProp(90)}
+              title="Putar Kanan (+90°) [E / R] (Shift: +45°)"
+              className="h-7 w-7 p-0 text-slate-400 hover:text-cyan-300 hover:bg-slate-800"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         )}
 
         <Button
@@ -223,6 +282,7 @@ const WorldGridScene: React.FC = () => {
     height,
     groundLayer,
     collisionLayer,
+    wallMaterialsLayer,
     spawners,
     portals,
     props,
@@ -232,8 +292,11 @@ const WorldGridScene: React.FC = () => {
     eraseAt,
     activeTool,
     dragPaintMode,
+    selectedWallType,
     selectedPropPrefab,
     selectedPropRotation,
+    selectedEntity,
+    setSelectedEntity,
   } = useMapStore();
 
   const [hovered, setHovered] = useState<HoveredCell | null>(null);
@@ -241,21 +304,171 @@ const WorldGridScene: React.FC = () => {
   const isLeftDraggingRef = useRef(false);
   const isShiftDownRef = useRef(false);
   const paintedCellsInStrokeRef = useRef<Set<string>>(new Set());
+  const hoveredRef = useRef<HoveredCell | null>(null);
+  hoveredRef.current = hovered;
 
-  // Pre-build procedural textures once
-  const floorTextures = useMemo(() => {
-    const map = new Map<number, THREE.CanvasTexture>();
-    for (let id = 1; id <= 8; id++) {
-      map.set(id, getFloorTexture(id));
-    }
-    return map;
+  // Global Keyboard Shortcuts (Q / E / R) & Wheel Spin (Alt + Wheel)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input, textarea, or contentEditable
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+
+      // V or Escape switches to Select / Pointer Tool
+      if (key === 'v' || e.key === 'Escape') {
+        const { setActiveTool, setSelectedEntity } = useMapStore.getState();
+        setActiveTool('select');
+        if (e.key === 'Escape') {
+          setSelectedEntity(null);
+        }
+        return;
+      }
+
+      // Delete or Backspace removes selected entity in Select mode
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const { activeTool, selectedEntity, eraseAt, setSelectedEntity } = useMapStore.getState();
+        if (activeTool === 'select' && selectedEntity) {
+          e.preventDefault();
+          eraseAt(selectedEntity.x, selectedEntity.y);
+          setSelectedEntity(null);
+          return;
+        }
+      }
+
+      if (key !== 'q' && key !== 'e' && key !== 'r') return;
+
+      const { activeTool, rotateSelectedProp: rotateProp, props, selectedEntity } =
+        useMapStore.getState();
+      const currentHovered = hoveredRef.current;
+      const targetPos = currentHovered || (selectedEntity?.type === 'prop' ? { x: selectedEntity.x, y: selectedEntity.y } : null);
+      const hasProp = targetPos
+        ? props.some((p) => p.grid_x === targetPos.x && p.grid_y === targetPos.y)
+        : false;
+
+      // Only allow rotation if currently in 'prop' tool OR hovering/selecting an existing placed prop!
+      // Never auto-switch tool to 'prop' when in floor/wall/eraser/select without a prop.
+      if (activeTool !== 'prop' && !hasProp) {
+        return;
+      }
+
+      e.preventDefault();
+      const isShift = e.shiftKey;
+      let step = 90;
+      if (key === 'q') {
+        step = isShift ? -45 : -90;
+      } else {
+        step = isShift ? 45 : 90;
+      }
+
+      rotateProp(step, targetPos);
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.altKey) return;
+      const { activeTool, rotateSelectedProp: rotateProp, props, selectedEntity } =
+        useMapStore.getState();
+      const currentHovered = hoveredRef.current;
+      const targetPos = currentHovered || (selectedEntity?.type === 'prop' ? { x: selectedEntity.x, y: selectedEntity.y } : null);
+      const hasProp = targetPos
+        ? props.some((p) => p.grid_x === targetPos.x && p.grid_y === targetPos.y)
+        : false;
+
+      if (activeTool !== 'prop' && !hasProp) {
+        return;
+      }
+
+      e.preventDefault();
+      const step = e.shiftKey ? 45 : 90;
+      const delta = e.deltaY < 0 ? step : -step;
+      rotateProp(delta, targetPos);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('wheel', handleWheel);
+    };
   }, []);
 
-  const stoneWallTex = useMemo(() => getStoneWallTexture(), []);
+  // Dynamic Floor Texture & Custom Prop Model Registration & Cache Sync (with IndexedDB fallback)
+  const customFloors = useMapStore((s) => s.customFloors);
+  const customProps = useMapStore((s) => s.customProps);
+  const updateCustomProp = useMapStore((s) => s.updateCustomProp);
+  const [textureVersion, setTextureVersion] = useState(0);
 
-  // Animate river water texture (ID 7) continuously
+  // Sync custom props blob URLs from IndexedDB if they are revoked or dead after refresh
+  useEffect(() => {
+    let active = true;
+    const loadCustomPropsFromStorage = async () => {
+      for (const cp of customProps) {
+        if (cp.isCustom) {
+          const blob = await getBlob(cp.id);
+          if (!active) return;
+          if (blob) {
+            const freshBlobUrl = URL.createObjectURL(blob);
+            updateCustomProp(cp.id, { modelUrl: freshBlobUrl });
+          }
+        }
+      }
+    };
+    loadCustomPropsFromStorage();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadCustomTextures = async () => {
+      let updated = false;
+      for (const cf of customFloors) {
+        // Blob URL (blob:...) yang tersimpan di localStorage MATI setelah reload halaman.
+        // Selalu utamakan file asli dari IndexedDB lalu buat blob URL baru.
+        const blob = await getBlob(`custom_floor_${cf.id}`);
+        if (!active) return;
+        const scale = cf.repeatScale ?? 1.0;
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          registerDynamicFloorTexture(cf.id, url, scale, () => {
+            if (active) setTextureVersion((v) => v + 1);
+          });
+          updated = true;
+        } else if (cf.textureUrl && !cf.textureUrl.startsWith('blob:')) {
+          // URL permanen (mis. URL server) masih valid
+          registerDynamicFloorTexture(cf.id, cf.textureUrl, scale, () => {
+            if (active) setTextureVersion((v) => v + 1);
+          });
+          updated = true;
+        } else {
+          console.warn(
+            `[MapCanvas] Tekstur custom "${cf.name}" (id ${cf.id}) tidak punya file tersimpan. Upload ulang diperlukan.`
+          );
+        }
+      }
+      if (updated && active) {
+        setTextureVersion((v) => v + 1);
+      }
+    };
+    loadCustomTextures();
+    return () => {
+      active = false;
+    };
+  }, [customFloors]);
+
+
+  // River water continuous flow
   useFrame((_, delta) => {
-    const waterTex = floorTextures.get(7);
+    const waterTex = getFloorTexture(7);
     if (waterTex) {
       waterTex.offset.y = (waterTex.offset.y - delta * 0.28) % 1;
       waterTex.offset.x = Math.sin(performance.now() * 0.001) * 0.03;
@@ -311,6 +524,47 @@ const WorldGridScene: React.FC = () => {
 
     const cell = getCellFromRay(e.ray) ?? hovered;
     if (!cell) return;
+
+    if (activeTool === 'select') {
+      const existingProp = props.find((p) => p.grid_x === cell.x && p.grid_y === cell.y);
+      const customMeta = existingProp
+        ? useMapStore.getState().customProps.find((cp) => cp.id === existingProp.prefab_id)
+        : null;
+      const builtinMeta = existingProp
+        ? PROP_PREFABS.find((bp) => bp.id === existingProp.prefab_id)
+        : null;
+
+      const idx = cell.y * width + cell.x;
+      const floorId = groundLayer[idx] ?? 0;
+      const wallH = collisionLayer[idx] ?? 0;
+      const floorMeta =
+        customFloors.find((cf) => cf.id === floorId) ||
+        FLOOR_MATERIALS.find((fm) => fm.id === floorId);
+
+      if (existingProp) {
+        setSelectedEntity({
+          type: 'prop',
+          x: cell.x,
+          y: cell.y,
+          data: {
+            ...existingProp,
+            prefabMeta: customMeta || builtinMeta,
+          },
+        });
+      } else {
+        setSelectedEntity({
+          type: 'tile',
+          x: cell.x,
+          y: cell.y,
+          data: {
+            floorId,
+            floorName: floorMeta?.name || `Material #${floorId}`,
+            wallHeight: wallH,
+          },
+        });
+      }
+      return;
+    }
 
     isLeftDraggingRef.current = true;
     isShiftDownRef.current = e.shiftKey;
@@ -373,6 +627,7 @@ const WorldGridScene: React.FC = () => {
       posZ: number;
       floorType: number;
       wallHeight: number;
+      wallMaterial: number;
     }> = [];
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -381,11 +636,15 @@ const WorldGridScene: React.FC = () => {
         const posZ = originZ + y * 2.0;
         const floorType = groundLayer[idx] ?? 0;
         const wallHeight = Math.max(0, Math.min(5, collisionLayer[idx] ?? 0));
-        list.push({ x, y, posX, posZ, floorType, wallHeight });
+        const wallMaterial =
+          wallMaterialsLayer && wallMaterialsLayer[idx] > 0
+            ? wallMaterialsLayer[idx]
+            : 2; // fallback to 2 (Cobblestone)
+        list.push({ x, y, posX, posZ, floorType, wallHeight, wallMaterial });
       }
     }
     return list;
-  }, [width, height, groundLayer, collisionLayer, originX, originZ]);
+  }, [width, height, groundLayer, collisionLayer, wallMaterialsLayer, originX, originZ]);
 
   // Calculate active Box Drag selection cells for live preview
   const boxSelectionCells = useMemo(() => {
@@ -407,9 +666,15 @@ const WorldGridScene: React.FC = () => {
 
   const hoveredIdx = hovered ? hovered.y * width + hovered.x : -1;
   const hoveredWallHeight = hoveredIdx >= 0 ? (collisionLayer[hoveredIdx] ?? 0) : 0;
+  const hoveredProp = hovered
+    ? props.find((p) => p.grid_x === hovered.x && p.grid_y === hovered.y)
+    : null;
+  const activePropRotation = hoveredProp ? hoveredProp.rotation_deg : selectedPropRotation;
 
   const highlightColor =
-    activeTool === 'eraser'
+    activeTool === 'select'
+      ? '#38bdf8'
+      : activeTool === 'eraser'
       ? '#ef4444'
       : activeTool === 'wall'
       ? '#f59e0b'
@@ -439,24 +704,16 @@ const WorldGridScene: React.FC = () => {
       {/* Render All Textured Floor Tiles & Stacked Stone Blocks */}
       {tiles.map((tile) => {
         const isRiver = tile.floorType === 7;
-        const floorTex = floorTextures.get(tile.floorType) ?? floorTextures.get(2);
 
         return (
           <group key={`${tile.x}_${tile.y}`} position={[tile.posX, 0, tile.posZ]}>
             {/* Textured Floor Tile */}
             {tile.floorType > 0 && (
-              <mesh
-                position={[0, isRiver ? -0.3 : -0.2, 0]}
-                receiveShadow
-                raycast={NOOP_RAYCAST}
-              >
-                <boxGeometry args={[1.98, isRiver ? 0.32 : 0.4, 1.98]} />
-                <meshStandardMaterial
-                  map={floorTex}
-                  roughness={isRiver ? 0.18 : 0.82}
-                  metalness={isRiver ? 0.25 : 0.05}
-                />
-              </mesh>
+              <FloorTileMesh
+                floorType={tile.floorType}
+                isRiver={isRiver}
+                textureVersion={textureVersion}
+              />
             )}
 
             {/* Riverbed Stone Rim when tile is River Water */}
@@ -467,54 +724,13 @@ const WorldGridScene: React.FC = () => {
               </mesh>
             )}
 
-            {/* Stackable Stone Blocks (Level 1..5) */}
+            {/* Stackable Modular 3D Blocks (Level 1..5) */}
             {tile.wallHeight > 0 && (
-              <group>
-                {Array.from({ length: tile.wallHeight }).map((_, levelIdx) => {
-                  const yCenter =
-                    levelIdx * STONE_BLOCK_HEIGHT + STONE_BLOCK_HEIGHT * 0.5;
-                  const scaleXZ = 1.96 - levelIdx * 0.04;
-                  return (
-                    <mesh
-                      key={levelIdx}
-                      position={[0, yCenter, 0]}
-                      castShadow
-                      receiveShadow
-                      raycast={NOOP_RAYCAST}
-                    >
-                      <boxGeometry args={[scaleXZ, STONE_BLOCK_HEIGHT - 0.03, scaleXZ]} />
-                      <meshStandardMaterial
-                        map={stoneWallTex}
-                        roughness={0.75}
-                        color={
-                          levelIdx === tile.wallHeight - 1 ? '#e2e8f0' : '#cbd5e1'
-                        }
-                      />
-                    </mesh>
-                  );
-                })}
-
-                {/* Stone Battlement Cap on top of the stack */}
-                <mesh
-                  position={[0, tile.wallHeight * STONE_BLOCK_HEIGHT + 0.04, 0]}
-                  castShadow
-                  receiveShadow
-                  raycast={NOOP_RAYCAST}
-                >
-                  <boxGeometry
-                    args={[
-                      2.02 - (tile.wallHeight - 1) * 0.04,
-                      0.1,
-                      2.02 - (tile.wallHeight - 1) * 0.04,
-                    ]}
-                  />
-                  <meshStandardMaterial
-                    map={stoneWallTex}
-                    color="#94a3b8"
-                    roughness={0.65}
-                  />
-                </mesh>
-              </group>
+              <BlockStackMesh
+                wallHeight={tile.wallHeight}
+                wallMaterial={tile.wallMaterial}
+                textureVersion={textureVersion}
+              />
             )}
           </group>
         );
@@ -555,14 +771,106 @@ const WorldGridScene: React.FC = () => {
             <meshBasicMaterial color={highlightColor} wireframe />
           </mesh>
 
-          {/* Ghost Preview of Prop when in 3D Prop Tool Mode */}
-          {activeTool === 'prop' && !boxDragStart && (
-            <group
-              position={[0, 0, 0]}
-              rotation={[0, (selectedPropRotation * Math.PI) / 180, 0]}
-            >
-              <PropMesh3D prefabId={selectedPropPrefab} />
+          {/* 3D In-World Compass Ring, Direction Pointer & Prop Preview */}
+          {(activeTool === 'prop' || !!hoveredProp || (activeTool === 'select' && selectedEntity?.type === 'prop' && selectedEntity.x === hovered.x && selectedEntity.y === hovered.y)) && !boxDragStart && (
+            <group position={[0, 0.02, 0]}>
+              {/* Static Compass Outer Ring */}
+              <mesh rotation={[-Math.PI / 2, 0, 0]} raycast={NOOP_RAYCAST}>
+                <ringGeometry args={[0.76, 0.86, 36]} />
+                <meshStandardMaterial
+                  color="#0891b2"
+                  emissive="#06b6d4"
+                  emissiveIntensity={0.65}
+                  transparent
+                  opacity={0.7}
+                />
+              </mesh>
+              {/* Compass Inner Disc Glow */}
+              <mesh rotation={[-Math.PI / 2, 0, 0]} raycast={NOOP_RAYCAST}>
+                <circleGeometry args={[0.76, 36]} />
+                <meshBasicMaterial
+                  color="#0284c7"
+                  transparent
+                  opacity={0.14}
+                />
+              </mesh>
+
+              {/* 4 Cardinal Tick Marks */}
+              {[
+                { pos: [0, 0.015, 0.81] as const, rot: [0, 0, 0] as const, col: '#38bdf8' },
+                { pos: [0.81, 0.015, 0] as const, rot: [0, Math.PI / 2, 0] as const, col: '#94a3b8' },
+                { pos: [0, 0.015, -0.81] as const, rot: [0, 0, 0] as const, col: '#94a3b8' },
+                { pos: [-0.81, 0.015, 0] as const, rot: [0, Math.PI / 2, 0] as const, col: '#94a3b8' },
+              ].map((tick, i) => (
+                <mesh
+                  key={i}
+                  position={tick.pos}
+                  rotation={tick.rot}
+                  raycast={NOOP_RAYCAST}
+                >
+                  <boxGeometry args={[0.04, 0.02, 0.14]} />
+                  <meshBasicMaterial color={tick.col} />
+                </mesh>
+              ))}
+
+              {/* Rotated Orientation Group: Front Arrow Pointer + Ghost Prop */}
+              <group rotation={[0, (activePropRotation * Math.PI) / 180, 0]}>
+                {/* 3D Front Direction Arrow (Points towards +Z) */}
+                <group position={[0, 0.025, 0]}>
+                  {/* Shaft */}
+                  <mesh position={[0, 0, 0.44]} raycast={NOOP_RAYCAST}>
+                    <boxGeometry args={[0.07, 0.025, 0.46]} />
+                    <meshStandardMaterial
+                      color="#38bdf8"
+                      emissive="#0284c7"
+                      emissiveIntensity={0.9}
+                    />
+                  </mesh>
+                  {/* Arrow Head */}
+                  <mesh
+                    position={[0, 0, 0.76]}
+                    rotation={[Math.PI / 2, 0, 0]}
+                    raycast={NOOP_RAYCAST}
+                  >
+                    <coneGeometry args={[0.16, 0.28, 3]} />
+                    <meshStandardMaterial
+                      color="#22d3ee"
+                      emissive="#06b6d4"
+                      emissiveIntensity={1.3}
+                    />
+                  </mesh>
+                </group>
+
+                {/* Render Ghost Prop only if there isn't already a placed prop here and not in select mode */}
+                {!hoveredProp && activeTool !== 'select' && (
+                  <PropMesh3D
+                    prefabId={selectedPropPrefab}
+                    modelUrl={
+                      useMapStore
+                        .getState()
+                        .customProps.find((p) => p.id === selectedPropPrefab)?.modelUrl
+                    }
+                  />
+                )}
+              </group>
             </group>
+          )}
+
+          {/* Ghost Preview of Modular Block when in Block Tool Mode */}
+          {activeTool === 'wall' && !boxDragStart && hoveredWallHeight < 5 && (
+            <mesh
+              position={[0, STONE_BLOCK_HEIGHT * 0.5, 0]}
+              raycast={NOOP_RAYCAST}
+            >
+              <boxGeometry args={[1.94, STONE_BLOCK_HEIGHT - 0.04, 1.94]} />
+              <meshStandardMaterial
+                map={getFloorTexture(selectedWallType)}
+                transparent
+                opacity={0.6}
+                roughness={0.75}
+                color="#fde68a"
+              />
+            </mesh>
           )}
         </group>
       )}
@@ -607,6 +915,13 @@ const WorldGridScene: React.FC = () => {
       {props.map((prop) => {
         const idx = prop.grid_y * width + prop.grid_x;
         const stackBaseY = (collisionLayer[idx] ?? 0) * STONE_BLOCK_HEIGHT;
+        const customMeta = useMapStore.getState().customProps.find((p) => p.id === prop.prefab_id);
+        const isSelected =
+          activeTool === 'select' &&
+          selectedEntity?.type === 'prop' &&
+          selectedEntity.x === prop.grid_x &&
+          selectedEntity.y === prop.grid_y;
+
         return (
           <group
             key={prop.id}
@@ -617,7 +932,15 @@ const WorldGridScene: React.FC = () => {
             ]}
             rotation={[0, (prop.rotation_deg * Math.PI) / 180, 0]}
           >
-            <PropMesh3D prefabId={prop.prefab_id} />
+            <PropMesh3D prefabId={prop.prefab_id} modelUrl={customMeta?.modelUrl} />
+
+            {/* Selection Bounding Box Highlight when selected in Select Tool */}
+            {isSelected && (
+              <mesh position={[0, 0.5, 0]} raycast={NOOP_RAYCAST}>
+                <boxGeometry args={[1.9, 1.2, 1.9]} />
+                <meshBasicMaterial color="#38bdf8" wireframe />
+              </mesh>
+            )}
           </group>
         );
       })}

@@ -7,7 +7,7 @@ import { StorageError, type StorageService } from '../storage/StorageService.js'
 
 const createUploadBody = z.object({
   guest_id: z.string().regex(/^[0-9a-fA-F-]{16,64}$/),
-  kind: z.enum(['texture', 'map', 'weapon', 'armor', 'monster']),
+  kind: z.enum(['texture', 'map', 'weapon', 'armor', 'monster', 'prop']),
   content_type: z.string().min(3),
   size: z.number().int().positive()
 });

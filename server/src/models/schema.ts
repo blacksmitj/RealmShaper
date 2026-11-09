@@ -15,7 +15,7 @@ import {
 
 // ---------- Enums ----------
 export const equipSlotEnum = pgEnum('equip_slot', ['weapon', 'armor', 'helmet', 'shield', 'accessory']);
-export const pgcKindEnum = pgEnum('pgc_kind', ['texture', 'map', 'weapon', 'armor', 'monster']);
+export const pgcKindEnum = pgEnum('pgc_kind', ['texture', 'map', 'weapon', 'armor', 'monster', 'prop']);
 export const pgcStatusEnum = pgEnum('pgc_status', ['pending_upload', 'uploaded', 'approved', 'rejected']);
 
 const timestamps = {

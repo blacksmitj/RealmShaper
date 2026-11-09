@@ -1,4 +1,4 @@
-export type ToolMode = 'floor' | 'wall' | 'eraser' | 'spawner' | 'portal' | 'prop';
+export type ToolMode = 'select' | 'floor' | 'wall' | 'eraser' | 'spawner' | 'portal' | 'prop';
 
 export type DragPaintMode = 'brush' | 'box';
 
@@ -11,16 +11,28 @@ export type MapPresetId = 'medieval_town' | 'catacombs';
 export interface FloorMaterialMeta {
   id: number;
   name: string;
-  category: 'town' | 'nature' | 'dungeon';
+  category: 'town' | 'nature' | 'dungeon' | 'custom';
   swatchColor: string;
   description: string;
+  isCustom?: boolean;
+  textureUrl?: string;
+  thumbnailUrl?: string;
+  assetId?: string;
+  repeatScale?: number; // 0.5 to 8.0 (default 1.0)
 }
 
 export interface PropPrefabMeta {
   id: string;
   name: string;
-  category: 'nature' | 'medieval' | 'dungeon';
+  category: 'nature' | 'medieval' | 'dungeon' | 'custom';
   description: string;
+  isCustom?: boolean;
+  modelUrl?: string;
+  thumbnailUrl?: string;
+  assetId?: string;
+  tileWidth?: number; // Jumlah tile arah X (default 1)
+  tileDepth?: number; // Jumlah tile arah Y/Z (default 1)
+  scaleMultiplier?: number; // Fine-tune scale (default 1.0)
 }
 
 export const FLOOR_MATERIALS: readonly FloorMaterialMeta[] = [
@@ -184,6 +196,9 @@ export interface PropData {
   grid_x: number;
   grid_y: number;
   rotation_deg: number; // 0, 90, 180, 270
+  tile_width?: number; // default 1
+  tile_depth?: number; // default 1
+  scale_multiplier?: number; // default 1.0
 }
 
 export interface MapData {
@@ -196,8 +211,17 @@ export interface MapData {
   layers: {
     ground: number[];
     collision: number[];
+    wall_materials?: number[];
   };
   spawners: Array<{ type: string; x: number; y: number }>;
   portals: Array<{ grid_x: number; grid_y: number; target_map_id: string; label: string }>;
-  props?: Array<{ prefab_id: string; grid_x: number; grid_y: number; rotation_deg: number }>;
+  props?: Array<{
+    prefab_id: string;
+    grid_x: number;
+    grid_y: number;
+    rotation_deg: number;
+    tile_width?: number;
+    tile_depth?: number;
+    scale_multiplier?: number;
+  }>;
 }

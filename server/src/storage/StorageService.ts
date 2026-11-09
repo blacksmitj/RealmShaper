@@ -11,15 +11,16 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../config/env.js';
 
-export type PgcKind = 'texture' | 'map' | 'weapon' | 'armor' | 'monster';
+export type PgcKind = 'texture' | 'map' | 'weapon' | 'armor' | 'monster' | 'prop';
 
 /** Whitelist content-type & batas ukuran per jenis asset PGC. */
 const UPLOAD_RULES: Record<PgcKind, { types: string[]; maxBytes: number }> = {
-  texture: { types: ['image/png', 'image/webp'], maxBytes: 2 * 1024 * 1024 },
+  texture: { types: ['image/png', 'image/webp', 'image/jpeg'], maxBytes: 5 * 1024 * 1024 },
   map: { types: ['application/json'], maxBytes: 1 * 1024 * 1024 },
   weapon: { types: ['application/json', 'image/png'], maxBytes: 1 * 1024 * 1024 },
   armor: { types: ['application/json', 'image/png'], maxBytes: 1 * 1024 * 1024 },
-  monster: { types: ['application/json'], maxBytes: 512 * 1024 }
+  monster: { types: ['application/json'], maxBytes: 512 * 1024 },
+  prop: { types: ['model/gltf-binary', 'application/octet-stream', 'application/json'], maxBytes: 15 * 1024 * 1024 }
 };
 
 export class StorageError extends Error {}

@@ -9,7 +9,31 @@ import type {
   SpawnerData,
   PortalData,
   PropData,
+  FloorMaterialMeta,
+  PropPrefabMeta,
 } from '../types/map.types';
+import { FLOOR_MATERIALS, PROP_PREFABS } from '../types/map.types';
+
+const CUSTOM_PROPS_KEY = 'realmshaper_custom_props';
+const CUSTOM_FLOORS_KEY = 'realmshaper_custom_floors';
+
+function loadStoredCustomProps(): PropPrefabMeta[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_PROPS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadStoredCustomFloors(): FloorMaterialMeta[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_FLOORS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
 
 interface MapState {
   mapId: string;
@@ -18,19 +42,37 @@ interface MapState {
   height: number;
   groundLayer: number[];
   collisionLayer: number[];
+  wallMaterialsLayer: number[];
   spawners: SpawnerData[];
   portals: PortalData[];
   props: PropData[];
+
+  // Dynamic Catalog State
+  customProps: PropPrefabMeta[];
+  customFloors: FloorMaterialMeta[];
+  addCustomProp: (prop: PropPrefabMeta) => void;
+  updateCustomProp: (id: string, updates: Partial<PropPrefabMeta>) => void;
+  removeCustomProp: (id: string) => void;
+  addCustomFloor: (floor: FloorMaterialMeta) => void;
+  updateCustomFloor: (id: number, updates: Partial<FloorMaterialMeta>) => void;
+  removeCustomFloor: (id: number) => void;
 
   // Editor UI State
   activeTool: ToolMode;
   dragPaintMode: DragPaintMode;
   selectedFloorType: number;
+  selectedWallType: number;
   wallStackMode: WallStackMode;
   selectedWallHeight: number;
   selectedSpawnerType: string;
   selectedPropPrefab: string;
   selectedPropRotation: number;
+  selectedEntity: {
+    type: 'prop' | 'tile' | 'spawner' | 'portal';
+    x: number;
+    y: number;
+    data?: any;
+  } | null;
   portalTargetMapId: string;
   portalLabel: string;
   environmentTheme: EnvironmentTheme;
@@ -40,14 +82,32 @@ interface MapState {
   setMapMeta: (id: string, name: string) => void;
   setDimensions: (width: number, height: number) => void;
   setActiveTool: (tool: ToolMode) => void;
+  setSelectedEntity: (
+    entity: {
+      type: 'prop' | 'tile' | 'spawner' | 'portal';
+      x: number;
+      y: number;
+      data?: any;
+    } | null
+  ) => void;
   setDragPaintMode: (mode: DragPaintMode) => void;
   setSelectedFloorType: (floorType: number) => void;
+  setSelectedWallType: (wallType: number) => void;
   setWallStackMode: (mode: WallStackMode) => void;
   setSelectedWallHeight: (height: number) => void;
   setSelectedSpawnerType: (type: string) => void;
   setSelectedPropPrefab: (prefab: string) => void;
   setSelectedPropRotation: (deg: number) => void;
-  rotateSelectedProp: () => void;
+  rotateSelectedProp: (deltaDeg?: number, targetGridPos?: { x: number; y: number } | null) => void;
+  updatePropConfig: (
+    propId: string,
+    updates: {
+      tile_width?: number;
+      tile_depth?: number;
+      scale_multiplier?: number;
+      rotation_deg?: number;
+    }
+  ) => void;
   setPortalConfig: (targetMapId: string, label: string) => void;
   setEnvironmentTheme: (theme: EnvironmentTheme) => void;
 
@@ -71,6 +131,7 @@ const createCatacombsPreset = (): {
   height: number;
   groundLayer: number[];
   collisionLayer: number[];
+  wallMaterialsLayer: number[];
   spawners: SpawnerData[];
   portals: PortalData[];
   props: PropData[];
@@ -80,6 +141,7 @@ const createCatacombsPreset = (): {
   const h = 16;
   const ground = new Array(w * h).fill(2);
   const col = new Array(w * h).fill(0);
+  const wallMaterials = new Array(w * h).fill(0);
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -87,9 +149,11 @@ const createCatacombsPreset = (): {
       if (x === 0 || x === w - 1 || y === 0 || y === h - 1) {
         ground[idx] = 1;
         col[idx] = 2; // 2-level fortress perimeter wall
+        wallMaterials[idx] = 1; // Fortress Border Stone
       } else if ((x === 4 || x === 11) && (y === 4 || y === 11)) {
         ground[idx] = 1;
         col[idx] = 3; // Tall stacked stone pillars
+        wallMaterials[idx] = 1;
       } else if (x >= 6 && x <= 9 && y >= 6 && y <= 9) {
         ground[idx] = 4; // Royal crimson carpet center
       } else if (x === 7 || x === 8 || y === 7 || y === 8) {
@@ -105,6 +169,7 @@ const createCatacombsPreset = (): {
     height: h,
     groundLayer: ground,
     collisionLayer: col,
+    wallMaterialsLayer: wallMaterials,
     spawners: [
       { id: 'spawn_1', type: 'skeleton_warrior', x: 7, y: 7 },
       { id: 'spawn_2', type: 'dark_cultist', x: 8, y: 8 },
@@ -134,6 +199,7 @@ const createMedievalRiverTownPreset = (): {
   height: number;
   groundLayer: number[];
   collisionLayer: number[];
+  wallMaterialsLayer: number[];
   spawners: SpawnerData[];
   portals: PortalData[];
   props: PropData[];
@@ -144,6 +210,7 @@ const createMedievalRiverTownPreset = (): {
   // Default lush grass meadow (6)
   const ground = new Array(w * h).fill(6);
   const col = new Array(w * h).fill(0);
+  const wallMaterials = new Array(w * h).fill(0);
   const props: PropData[] = [];
 
   for (let y = 0; y < h; y++) {
@@ -196,6 +263,7 @@ const createMedievalRiverTownPreset = (): {
           (x === 0 && y === h - 1) ||
           (x === w - 1 && y === h - 1);
         col[idx] = isTowerPeak ? 4 : distFromEdge;
+        wallMaterials[idx] = 1; // Fortress Border Stone
       }
     }
   }
@@ -260,6 +328,7 @@ const createMedievalRiverTownPreset = (): {
     height: h,
     groundLayer: ground,
     collisionLayer: col,
+    wallMaterialsLayer: wallMaterials,
     spawners: [
       { id: 'spawn_town_1', type: 'dummy', x: 13, y: 10 },
     ],
@@ -286,6 +355,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   height: initialPreset.height,
   groundLayer: initialPreset.groundLayer,
   collisionLayer: initialPreset.collisionLayer,
+  wallMaterialsLayer: initialPreset.wallMaterialsLayer,
   spawners: initialPreset.spawners,
   portals: initialPreset.portals,
   props: initialPreset.props,
@@ -293,15 +363,94 @@ export const useMapStore = create<MapState>((set, get) => ({
   activeTool: 'floor',
   dragPaintMode: 'brush',
   selectedFloorType: 2,
+  selectedWallType: 2,
   wallStackMode: 'increment',
   selectedWallHeight: 1,
   selectedSpawnerType: 'dummy',
   selectedPropPrefab: 'oak_tree',
   selectedPropRotation: 0,
+  selectedEntity: null,
   portalTargetMapId: 'main_city',
   portalLabel: 'Realm Gate',
   environmentTheme: initialPreset.environmentTheme,
   isDragging: false,
+
+  customProps: loadStoredCustomProps(),
+  customFloors: loadStoredCustomFloors(),
+
+  addCustomProp: (prop) =>
+    set((state) => {
+      const next = [prop, ...state.customProps.filter((p) => p.id !== prop.id)];
+      try {
+        localStorage.setItem(CUSTOM_PROPS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return { customProps: next, selectedPropPrefab: prop.id };
+    }),
+
+  updateCustomProp: (id, updates) =>
+    set((state) => {
+      const next = state.customProps.map((p) => (p.id === id ? { ...p, ...updates } : p));
+      try {
+        localStorage.setItem(CUSTOM_PROPS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return { customProps: next };
+    }),
+
+  removeCustomProp: (id) =>
+    set((state) => {
+      const next = state.customProps.filter((p) => p.id !== id);
+      try {
+        localStorage.setItem(CUSTOM_PROPS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return {
+        customProps: next,
+        selectedPropPrefab:
+          state.selectedPropPrefab === id ? (PROP_PREFABS[0]?.id ?? 'oak_tree') : state.selectedPropPrefab,
+      };
+    }),
+
+  addCustomFloor: (floor) =>
+    set((state) => {
+      const next = [floor, ...state.customFloors.filter((f) => f.id !== floor.id)];
+      try {
+        localStorage.setItem(CUSTOM_FLOORS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return { customFloors: next, selectedFloorType: floor.id };
+    }),
+
+  updateCustomFloor: (id, updates) =>
+    set((state) => {
+      const next = state.customFloors.map((f) => (f.id === id ? { ...f, ...updates } : f));
+      try {
+        localStorage.setItem(CUSTOM_FLOORS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return { customFloors: next };
+    }),
+
+  removeCustomFloor: (id) =>
+    set((state) => {
+      const next = state.customFloors.filter((f) => f.id !== id);
+      try {
+        localStorage.setItem(CUSTOM_FLOORS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return {
+        customFloors: next,
+        selectedFloorType:
+          state.selectedFloorType === id ? (FLOOR_MATERIALS[0]?.id ?? 2) : state.selectedFloorType,
+      };
+    }),
 
   setMapMeta: (mapId, mapName) => set({ mapId, mapName }),
 
@@ -309,6 +458,7 @@ export const useMapStore = create<MapState>((set, get) => ({
     set((state) => {
       const newGround = new Array(width * height).fill(6);
       const newCol = new Array(width * height).fill(0);
+      const newWallMaterials = new Array(width * height).fill(0);
 
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
@@ -317,6 +467,7 @@ export const useMapStore = create<MapState>((set, get) => ({
             const newIdx = y * width + x;
             newGround[newIdx] = state.groundLayer[oldIdx] ?? 6;
             newCol[newIdx] = state.collisionLayer[oldIdx] ?? 0;
+            newWallMaterials[newIdx] = state.wallMaterialsLayer[oldIdx] ?? 0;
           }
         }
       }
@@ -326,23 +477,74 @@ export const useMapStore = create<MapState>((set, get) => ({
         height,
         groundLayer: newGround,
         collisionLayer: newCol,
+        wallMaterialsLayer: newWallMaterials,
         spawners: state.spawners.filter((s) => s.x < width && s.y < height),
         portals: state.portals.filter((p) => p.grid_x < width && p.grid_y < height),
         props: state.props.filter((p) => p.grid_x < width && p.grid_y < height),
       };
     }),
 
-  setActiveTool: (tool) => set({ activeTool: tool }),
+  setActiveTool: (tool) => {
+    if (tool !== 'select') {
+      set({ activeTool: tool, selectedEntity: null });
+    } else {
+      set({ activeTool: tool });
+    }
+  },
+  setSelectedEntity: (selectedEntity) => set({ selectedEntity }),
   setDragPaintMode: (dragPaintMode) => set({ dragPaintMode }),
   setSelectedFloorType: (floorType) => set({ selectedFloorType: floorType }),
+  setSelectedWallType: (wallType) => set({ selectedWallType: wallType }),
   setWallStackMode: (wallStackMode) => set({ wallStackMode }),
   setSelectedWallHeight: (selectedWallHeight) =>
     set({ selectedWallHeight: Math.max(1, Math.min(5, selectedWallHeight)) }),
   setSelectedSpawnerType: (type) => set({ selectedSpawnerType: type }),
   setSelectedPropPrefab: (prefab) => set({ selectedPropPrefab: prefab }),
   setSelectedPropRotation: (deg) => set({ selectedPropRotation: ((deg % 360) + 360) % 360 }),
-  rotateSelectedProp: () =>
-    set((state) => ({ selectedPropRotation: (state.selectedPropRotation + 90) % 360 })),
+  updatePropConfig: (propId, updates) => {
+    const { props, selectedEntity } = get();
+    const updatedProps = props.map((p) => (p.id === propId ? { ...p, ...updates } : p));
+    const nextSelectedEntity =
+      selectedEntity && selectedEntity.type === 'prop' && selectedEntity.data?.id === propId
+        ? { ...selectedEntity, data: { ...selectedEntity.data, ...updates } }
+        : selectedEntity;
+    set({ props: updatedProps, selectedEntity: nextSelectedEntity });
+  },
+  rotateSelectedProp: (deltaDeg = 90, targetGridPos = null) => {
+    const { props, selectedPropRotation, selectedEntity } = get();
+    const resolvedPos = targetGridPos || (selectedEntity?.type === 'prop' ? { x: selectedEntity.x, y: selectedEntity.y } : null);
+    const currentProp = resolvedPos
+      ? props.find(
+          (p) =>
+            Math.round(p.grid_x) === Math.round(resolvedPos.x) &&
+            Math.round(p.grid_y) === Math.round(resolvedPos.y)
+        )
+      : null;
+    const baseRotation = currentProp ? currentProp.rotation_deg : selectedPropRotation;
+    const newRotation = (((baseRotation + deltaDeg) % 360) + 360) % 360;
+
+    if (resolvedPos && currentProp) {
+      const updatedProps = props.map((p) =>
+        Math.round(p.grid_x) === Math.round(resolvedPos.x) &&
+        Math.round(p.grid_y) === Math.round(resolvedPos.y)
+          ? { ...p, rotation_deg: newRotation }
+          : p
+      );
+      set({
+        props: updatedProps,
+        selectedPropRotation: newRotation,
+        selectedEntity:
+          selectedEntity?.type === 'prop' &&
+          selectedEntity.x === currentProp.grid_x &&
+          selectedEntity.y === currentProp.grid_y
+            ? { ...selectedEntity, data: { ...selectedEntity.data, rotation_deg: newRotation } }
+            : selectedEntity,
+      });
+      return;
+    }
+
+    set({ selectedPropRotation: newRotation });
+  },
   setPortalConfig: (portalTargetMapId, portalLabel) => set({ portalTargetMapId, portalLabel }),
   setEnvironmentTheme: (environmentTheme) => set({ environmentTheme }),
 
@@ -352,10 +554,12 @@ export const useMapStore = create<MapState>((set, get) => ({
       height,
       activeTool,
       selectedFloorType,
+      selectedWallType,
       wallStackMode,
       selectedWallHeight,
       groundLayer,
       collisionLayer,
+      wallMaterialsLayer,
       spawners,
       portals,
       props,
@@ -367,31 +571,36 @@ export const useMapStore = create<MapState>((set, get) => ({
     } = get();
 
     if (x < 0 || x >= width || y < 0 || y >= height) return;
+    if (activeTool === 'select') return;
     const idx = y * width + x;
 
     if (activeTool === 'floor') {
       const newGround = [...groundLayer];
       newGround[idx] = selectedFloorType;
       const newCol = [...collisionLayer];
-      newCol[idx] = 0; // Painting floor clears stone wall stack on that tile
-      set({ groundLayer: newGround, collisionLayer: newCol });
+      newCol[idx] = 0; // Painting floor clears block stack on that tile
+      const newWallMaterials = [...wallMaterialsLayer];
+      newWallMaterials[idx] = 0;
+      set({ groundLayer: newGround, collisionLayer: newCol, wallMaterialsLayer: newWallMaterials });
     } else if (activeTool === 'wall') {
       const newCol = [...collisionLayer];
+      const newWallMaterials = [...wallMaterialsLayer];
       const currentHeight = newCol[idx] ?? 0;
 
       if (wallStackMode === 'increment') {
-        // Stack stone higher (+1 per cell per stroke, capped at 5)
+        // Stack block higher (+1 per cell per stroke, capped at 5)
         newCol[idx] = currentHeight >= 5 ? 5 : currentHeight + 1;
       } else {
         newCol[idx] = selectedWallHeight;
       }
+      newWallMaterials[idx] = selectedWallType;
 
-      // Ensure there is a ground tile under stacked stones
+      // Ensure there is a ground tile under stacked blocks
       const newGround = [...groundLayer];
       if ((newGround[idx] ?? 0) === 0) {
         newGround[idx] = 1;
       }
-      set({ collisionLayer: newCol, groundLayer: newGround });
+      set({ collisionLayer: newCol, groundLayer: newGround, wallMaterialsLayer: newWallMaterials });
     } else if (activeTool === 'spawner') {
       const filtered = spawners.filter((s) => !(s.x === x && s.y === y));
       set({
@@ -441,10 +650,12 @@ export const useMapStore = create<MapState>((set, get) => ({
       height,
       activeTool,
       selectedFloorType,
+      selectedWallType,
       wallStackMode,
       selectedWallHeight,
       groundLayer,
       collisionLayer,
+      wallMaterialsLayer,
       spawners,
       portals,
       props,
@@ -455,6 +666,8 @@ export const useMapStore = create<MapState>((set, get) => ({
       portalLabel,
     } = get();
 
+    if (activeTool === 'select') return;
+
     const minX = Math.max(0, Math.min(x1, x2));
     const maxX = Math.min(width - 1, Math.max(x1, x2));
     const minY = Math.max(0, Math.min(y1, y2));
@@ -462,6 +675,7 @@ export const useMapStore = create<MapState>((set, get) => ({
 
     const newGround = [...groundLayer];
     const newCol = [...collisionLayer];
+    const newWallMaterials = [...wallMaterialsLayer];
     let newSpawners = [...spawners];
     let newPortals = [...portals];
     let newProps = [...props];
@@ -472,7 +686,9 @@ export const useMapStore = create<MapState>((set, get) => ({
     if (activeTool === 'eraser') {
       for (let y = minY; y <= maxY; y++) {
         for (let x = minX; x <= maxX; x++) {
-          newCol[y * width + x] = 0;
+          const idx = y * width + x;
+          newCol[idx] = 0;
+          newWallMaterials[idx] = 0;
         }
       }
       newSpawners = newSpawners.filter((s) => !inRegion(s.x, s.y));
@@ -480,6 +696,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       newProps = newProps.filter((pr) => !inRegion(pr.grid_x, pr.grid_y));
       set({
         collisionLayer: newCol,
+        wallMaterialsLayer: newWallMaterials,
         spawners: newSpawners,
         portals: newPortals,
         props: newProps,
@@ -493,9 +710,10 @@ export const useMapStore = create<MapState>((set, get) => ({
           const idx = y * width + x;
           newGround[idx] = selectedFloorType;
           newCol[idx] = 0;
+          newWallMaterials[idx] = 0;
         }
       }
-      set({ groundLayer: newGround, collisionLayer: newCol });
+      set({ groundLayer: newGround, collisionLayer: newCol, wallMaterialsLayer: newWallMaterials });
       return;
     }
 
@@ -506,17 +724,22 @@ export const useMapStore = create<MapState>((set, get) => ({
           const current = newCol[idx] ?? 0;
           if (isShiftKey) {
             newCol[idx] = Math.max(0, current - 1);
+            if (newCol[idx] === 0) {
+              newWallMaterials[idx] = 0;
+            }
           } else if (wallStackMode === 'increment') {
             newCol[idx] = Math.min(5, current + 1);
+            newWallMaterials[idx] = selectedWallType;
           } else {
             newCol[idx] = selectedWallHeight;
+            newWallMaterials[idx] = selectedWallType;
           }
           if ((newGround[idx] ?? 0) === 0 && (newCol[idx] ?? 0) > 0) {
             newGround[idx] = 1;
           }
         }
       }
-      set({ collisionLayer: newCol, groundLayer: newGround });
+      set({ collisionLayer: newCol, groundLayer: newGround, wallMaterialsLayer: newWallMaterials });
       return;
     }
 
@@ -571,27 +794,34 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   decreaseWallAt: (x, y) => {
-    const { width, height, collisionLayer } = get();
+    const { width, height, collisionLayer, wallMaterialsLayer } = get();
     if (x < 0 || x >= width || y < 0 || y >= height) return;
     const idx = y * width + x;
     const current = collisionLayer[idx] ?? 0;
     if (current > 0) {
       const newCol = [...collisionLayer];
+      const newWallMaterials = [...wallMaterialsLayer];
       newCol[idx] = current - 1;
-      set({ collisionLayer: newCol });
+      if (newCol[idx] === 0) {
+        newWallMaterials[idx] = 0;
+      }
+      set({ collisionLayer: newCol, wallMaterialsLayer: newWallMaterials });
     }
   },
 
   eraseAt: (x, y) => {
-    const { width, height, collisionLayer, spawners, portals, props } = get();
+    const { width, height, collisionLayer, wallMaterialsLayer, spawners, portals, props } = get();
     if (x < 0 || x >= width || y < 0 || y >= height) return;
     const idx = y * width + x;
 
     const newCol = [...collisionLayer];
+    const newWallMaterials = [...wallMaterialsLayer];
     newCol[idx] = 0;
+    newWallMaterials[idx] = 0;
 
     set({
       collisionLayer: newCol,
+      wallMaterialsLayer: newWallMaterials,
       spawners: spawners.filter((s) => !(s.x === x && s.y === y)),
       portals: portals.filter((p) => !(Math.round(p.grid_x) === x && Math.round(p.grid_y) === y)),
       props: props.filter((p) => !(p.grid_x === x && p.grid_y === y)),
@@ -608,6 +838,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       height: preset.height,
       groundLayer: preset.groundLayer,
       collisionLayer: preset.collisionLayer,
+      wallMaterialsLayer: preset.wallMaterialsLayer,
       spawners: preset.spawners,
       portals: preset.portals,
       props: preset.props,
@@ -620,6 +851,17 @@ export const useMapStore = create<MapState>((set, get) => ({
     const height = data.height || DEFAULT_HEIGHT;
     const groundLayer = data.layers?.ground || new Array(width * height).fill(2);
     const collisionLayer = data.layers?.collision || new Array(width * height).fill(0);
+    const rawWallMaterials = data.layers?.wall_materials;
+    const wallMaterialsLayer = new Array(width * height).fill(0);
+
+    for (let i = 0; i < width * height; i++) {
+      if (rawWallMaterials && rawWallMaterials[i] != null && rawWallMaterials[i] > 0) {
+        wallMaterialsLayer[i] = rawWallMaterials[i];
+      } else if ((collisionLayer[i] ?? 0) > 0) {
+        // Fallback for legacy maps where wall_materials wasn't saved: default to 2 (Cobblestone)
+        wallMaterialsLayer[i] = 2;
+      }
+    }
 
     const spawners: SpawnerData[] = (data.spawners || []).map((s, i) => ({
       id: `spawn_${i}`,
@@ -651,6 +893,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       height,
       groundLayer,
       collisionLayer,
+      wallMaterialsLayer,
       spawners,
       portals,
       props,
@@ -669,6 +912,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       layers: {
         ground: state.groundLayer,
         collision: state.collisionLayer,
+        wall_materials: state.wallMaterialsLayer,
       },
       spawners: state.spawners.map((s) => ({ type: s.type, x: s.x, y: s.y })),
       portals: state.portals.map((p) => ({
@@ -695,6 +939,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       height: preset.height,
       groundLayer: preset.groundLayer,
       collisionLayer: preset.collisionLayer,
+      wallMaterialsLayer: preset.wallMaterialsLayer,
       spawners: preset.spawners,
       portals: preset.portals,
       props: preset.props,

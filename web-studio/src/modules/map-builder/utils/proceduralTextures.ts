@@ -44,10 +44,84 @@ function seededRandom(seed: number): () => number {
   };
 }
 
+const dynamicTextureMap = new Map<number, THREE.Texture>();
+/** floorType yang gambarnya SUDAH selesai di-decode (aman dipakai shader). */
+const loadedDynamicTextures = new Set<number>();
+
 /**
- * Generates or returns cached procedural floor texture for each floorType ID (1..8)
+ * Register dynamic texture for custom floor types (> 100) with custom tiling scale
  */
-export function getFloorTexture(floorType: number): THREE.CanvasTexture {
+export function registerDynamicFloorTexture(
+  floorType: number,
+  textureUrl: string,
+  repeatScale = 1.0,
+  onLoaded?: () => void
+): THREE.Texture {
+  const existing = dynamicTextureMap.get(floorType);
+  if (existing) {
+    const img = existing.image as HTMLImageElement | undefined;
+    if (img && typeof img.src === 'string' && img.src !== textureUrl) {
+      existing.dispose();
+      loadedDynamicTextures.delete(floorType);
+    } else {
+      existing.repeat.set(repeatScale, repeatScale);
+      existing.needsUpdate = true;
+      return existing;
+    }
+  }
+
+  const loader = new THREE.TextureLoader();
+  const tex = loader.load(
+    textureUrl,
+    (loadedTex) => {
+      loadedTex.wrapS = THREE.RepeatWrapping;
+      loadedTex.wrapT = THREE.RepeatWrapping;
+      loadedTex.repeat.set(repeatScale, repeatScale);
+      loadedTex.colorSpace = THREE.SRGBColorSpace;
+      loadedTex.needsUpdate = true;
+      loadedDynamicTextures.add(floorType);
+      if (onLoaded) onLoaded();
+    },
+    undefined,
+    (err) => {
+      loadedDynamicTextures.delete(floorType);
+      dynamicTextureMap.delete(floorType);
+      console.error(`Failed to load dynamic floor texture (${floorType}):`, err);
+    }
+  );
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeatScale, repeatScale);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  dynamicTextureMap.set(floorType, tex);
+  return tex;
+}
+
+/**
+ * Updates the tiling repetition scale (repeat.set) for an already loaded dynamic floor texture.
+ */
+export function updateDynamicFloorTiling(floorType: number, repeatScale: number): void {
+  const tex = dynamicTextureMap.get(floorType);
+  if (tex) {
+    tex.repeat.set(repeatScale, repeatScale);
+    tex.needsUpdate = true;
+  }
+}
+
+/**
+ * Generates or returns cached procedural floor texture for each floorType ID (1..8, or dynamic > 100)
+ */
+export function getFloorTexture(floorType: number): THREE.Texture {
+  if (floorType > 100) {
+    // Hanya pakai tekstur custom jika gambarnya benar-benar sudah ter-load.
+    // Texture tanpa image = shader sample hitam.
+    if (loadedDynamicTextures.has(floorType) && dynamicTextureMap.has(floorType)) {
+      return dynamicTextureMap.get(floorType)!;
+    }
+    // Fallback ke cobblestone (2) selama loading / jika file hilang
+    return getFloorTexture(2);
+  }
   const existing = floorTextureCache.get(floorType);
   if (existing) return existing;
 
@@ -468,10 +542,9 @@ export function getRoofShingleTexture(): THREE.CanvasTexture {
 /**
  * Wood plank texture for bridges, fences, and stalls
  */
-export function getWoodPlankTexture(): THREE.CanvasTexture {
+export function getWoodPlankTexture(): THREE.Texture {
   if (cachedWoodPlankTex) return cachedWoodPlankTex;
-  cachedWoodPlankTex = getFloorTexture(8);
-  return cachedWoodPlankTex;
+  return getFloorTexture(8);
 }
 
 /**
