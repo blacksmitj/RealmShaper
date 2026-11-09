@@ -1,0 +1,321 @@
+import React from 'react';
+import {
+  Shield,
+  Swords,
+  Heart,
+  Zap,
+  Award,
+  AlertCircle,
+  Download,
+  RotateCcw,
+  Sparkles,
+} from 'lucide-react';
+import { useStatStore } from '../stores/statStore';
+import type { MonsterTier, MonsterBehavior } from '../types/stat.types';
+
+// Shadcn UI Components
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+export const StatBalancerView: React.FC = () => {
+  const {
+    name,
+    tier,
+    level,
+    behavior,
+    str,
+    agi,
+    vit,
+    int,
+    dex,
+    luk,
+    setMeta,
+    setAttribute,
+    getAllocatedPoints,
+    getMaxBudget,
+    getRemainingPoints,
+    getDerivedStats,
+    exportMonsterJson,
+    resetStats,
+  } = useStatStore();
+
+  const allocated = getAllocatedPoints();
+  const maxBudget = getMaxBudget();
+  const remaining = getRemainingPoints();
+  const derived = getDerivedStats();
+
+  const attributes = [
+    { key: 'str', label: 'STR (Strength)', val: str, desc: 'Increases physical attack damage' },
+    { key: 'agi', label: 'AGI (Agility)', val: agi, desc: 'Increases move speed & attack rate' },
+    { key: 'vit', label: 'VIT (Vitality)', val: vit, desc: 'Increases maximum HP & defense' },
+    { key: 'int', label: 'INT (Intelligence)', val: int, desc: 'Increases magic skill potency' },
+    { key: 'dex', label: 'DEX (Dexterity)', val: dex, desc: 'Increases hit chance & crit chance' },
+    { key: 'luk', label: 'LUK (Luck)', val: luk, desc: 'Increases rare item drop probability' },
+  ] as const;
+
+  const handleExport = () => {
+    const jsonStr = exportMonsterJson();
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name.toLowerCase().replace(/\s+/g, '_')}_preset.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="w-full h-full flex overflow-hidden bg-slate-950 font-sans text-slate-100">
+      {/* Left Column: Attribute Allocation Controls */}
+      <div className="w-[450px] border-r border-slate-800 flex flex-col h-full bg-slate-900/40 p-6 overflow-y-auto space-y-6">
+        <div>
+          <div className="flex items-center gap-2 text-cyan-400 mb-1">
+            <Sparkles className="w-4 h-4" />
+            <h2 className="text-xs font-bold uppercase tracking-wider">Monster Stat Balancer</h2>
+          </div>
+          <h1 className="text-lg font-bold text-slate-100">Creator Stat Budgeting</h1>
+          <p className="text-xs text-slate-400">
+            Keseimbangan parameter monster dikunci oleh server-authoritative budget rule.
+          </p>
+        </div>
+
+        {/* Monster Meta */}
+        <div className="space-y-3 p-4 bg-slate-950/60 border border-slate-800 rounded-lg">
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">Monster Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setMeta(e.target.value, tier, level, behavior)}
+              className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Tier / Class</label>
+              <Select
+                value={tier}
+                onValueChange={(val) => {
+                  if (val) setMeta(name, val as MonsterTier, level, behavior);
+                }}
+              >
+                <SelectTrigger className="w-full bg-slate-900 border-slate-800 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-950 border-slate-800 text-xs">
+                  <SelectItem value="normal">Normal Mob</SelectItem>
+                  <SelectItem value="elite">Elite Champion</SelectItem>
+                  <SelectItem value="boss">Dungeon Boss</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">AI Behavior</label>
+              <Select
+                value={behavior}
+                onValueChange={(val) => {
+                  if (val) setMeta(name, tier, level, val as MonsterBehavior);
+                }}
+              >
+                <SelectTrigger className="w-full bg-slate-900 border-slate-800 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-950 border-slate-800 text-xs">
+                  <SelectItem value="aggressive">Aggressive (Aggro)</SelectItem>
+                  <SelectItem value="patrol">Patrol Area</SelectItem>
+                  <SelectItem value="passive">Passive / Neutral</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Level Slider */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Target Monster Level</span>
+              <span className="font-mono text-cyan-400 font-bold">Lv. {level}</span>
+            </div>
+            <Slider
+              value={[level]}
+              min={1}
+              max={50}
+              step={1}
+              onValueChange={(val) => {
+                const lv = Array.isArray(val) ? val[0] : val;
+                if (typeof lv === 'number') setMeta(name, tier, lv, behavior);
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Budget Counter Card */}
+        <div className="p-4 bg-gradient-to-r from-slate-900 to-cyan-950/40 border border-cyan-800/40 rounded-lg flex items-center justify-between">
+          <div>
+            <span className="text-[11px] text-slate-400 uppercase tracking-wider block">
+              Budget Status
+            </span>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="text-2xl font-bold font-mono text-white">{allocated}</span>
+              <span className="text-xs text-slate-400 font-mono">/ {maxBudget} Pts</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-[11px] text-slate-400 uppercase tracking-wider block">
+              Remaining
+            </span>
+            <span
+              className={`text-xl font-bold font-mono ${
+                remaining === 0 ? 'text-emerald-400' : 'text-cyan-400'
+              }`}
+            >
+              {remaining}
+            </span>
+          </div>
+        </div>
+
+        {/* Attribute Allocation Sliders */}
+        <div className="space-y-4">
+          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+            Attribute Point Allocation
+          </label>
+          {attributes.map((attr) => (
+            <div
+              key={attr.key}
+              className="p-3 bg-slate-950/50 border border-slate-800 rounded-lg space-y-2"
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-xs font-semibold text-slate-200">{attr.label}</span>
+                  <p className="text-[10px] text-slate-500">{attr.desc}</p>
+                </div>
+                <span className="text-sm font-mono font-bold text-cyan-400 px-2 py-0.5 bg-slate-900 rounded border border-slate-800">
+                  {attr.val}
+                </span>
+              </div>
+              <Slider
+                value={[attr.val]}
+                min={1}
+                max={50}
+                step={1}
+                onValueChange={(val) => {
+                  const target = Array.isArray(val) ? val[0] : val;
+                  if (typeof target === 'number') setAttribute(attr.key, target);
+                }}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div className="pt-2 flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={resetStats}
+            className="flex-1 bg-slate-900 border-slate-800 hover:bg-slate-800 text-xs gap-1.5"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+            <span>Reset Stats</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleExport}
+            className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs gap-1.5 shadow-md shadow-cyan-950"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export Preset</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Right Column: Live Combat Simulation Card */}
+      <div className="flex-1 p-8 flex flex-col justify-center items-center relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950">
+        <div className="max-w-lg w-full space-y-6">
+          <div className="text-center space-y-2">
+            <span className="text-xs px-3 py-1 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 uppercase tracking-widest font-mono">
+              Live Combat Math Preview
+            </span>
+            <h2 className="text-3xl font-extrabold text-white tracking-tight">{name}</h2>
+            <p className="text-xs text-slate-400">
+              Hasil kalkulasi deterministik yang akan dieksekusi oleh{' '}
+              <span className="text-cyan-400 font-mono">DummyMonster3D.gd</span> &{' '}
+              <span className="text-cyan-400 font-mono">GameEngine.ts</span>
+            </p>
+          </div>
+
+          {/* Combat Cards Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 backdrop-blur">
+              <div className="flex items-center gap-2 text-rose-400">
+                <Heart className="w-4 h-4" />
+                <span className="text-xs font-semibold uppercase">Max Health (HP)</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-white">{derived.maxHp}</div>
+              <p className="text-[10px] text-slate-500">Scaled by VIT & Tier Multiplier</p>
+            </div>
+
+            <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 backdrop-blur">
+              <div className="flex items-center gap-2 text-amber-400">
+                <Swords className="w-4 h-4" />
+                <span className="text-xs font-semibold uppercase">Attack Power</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-white">{derived.attackDamage}</div>
+              <p className="text-[10px] text-slate-500">Base damage dealt per swing</p>
+            </div>
+
+            <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 backdrop-blur">
+              <div className="flex items-center gap-2 text-blue-400">
+                <Shield className="w-4 h-4" />
+                <span className="text-xs font-semibold uppercase">Armor Defense</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-white">{derived.defense}</div>
+              <p className="text-[10px] text-slate-500">Damage reduction against players</p>
+            </div>
+
+            <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 backdrop-blur">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <Zap className="w-4 h-4" />
+                <span className="text-xs font-semibold uppercase">Move Speed</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-white">
+                {derived.moveSpeed} <span className="text-xs font-normal text-slate-400">m/s</span>
+              </div>
+              <p className="text-[10px] text-slate-500">Chase velocity in 3D world</p>
+            </div>
+          </div>
+
+          {/* Reward & Drops Banner */}
+          <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-amber-950/60 border border-amber-800/40 text-amber-400">
+                <Award className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-slate-200 block">Experience Bounty</span>
+                <span className="text-sm font-mono font-bold text-amber-400">
+                  +{derived.expReward} EXP
+                </span>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-[11px] text-slate-400 block">Verified Budget</span>
+              <span className="text-xs text-emerald-400 font-medium flex items-center gap-1 justify-end">
+                <AlertCircle className="w-3.5 h-3.5" /> Server Compliant
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+

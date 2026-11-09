@@ -105,6 +105,11 @@ d:\Godot\mmorpg\
    - Logika tick pertempuran, spatial grid, entity state, dan kalkulasi damage diletakkan di `server/src/game-engine/` secara terisolasi (pure domain logic tanpa dependensi ketat ke framework web/Fastify).
    - `gateway/` hanya bertugas menerima paket WebSocket dan meneruskannya ke `game-engine`.
 
+7. **Larangan Eksekusi Package Installer / Interactive CLI oleh Agent (Wajib Manual oleh User):**
+   - Agent **DILARANG** menjalankan perintah installer package atau init CLI interaktif (seperti `pnpm add`, `npm install`, `pnpm dlx shadcn`, `npx create-...`, dsb.) karena berisiko hang/timeout akibat menunggu prompt TTY non-interaktif dan permission delay.
+   - Setiap penambahan dependency atau inisialisasi CLI eksternal **WAJIB diinstruksikan kepada USER** untuk dijalankan secara manual di terminal lokal user.
+   - Agent hanya bertugas menyediakan script, konfigurasi kode, struktur file, dan logika implementasi setelah package terpasang.
+
 ---
 
 ## 4. GDScript Coding Standards (Godot Official)
