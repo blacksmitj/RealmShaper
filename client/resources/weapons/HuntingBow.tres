@@ -1,13 +1,12 @@
-[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3 uid="uid://dm6v3k8r9p2x1"]
+[gd_resource type="Resource" script_class="WeaponData" format=3 uid="uid://dm6v3k8sap2x1"]
 
-[ext_resource type="Script" path="res://scripts/resources/WeaponData.gd" id="1_wpn"]
+[ext_resource type="Script" uid="uid://cr1oodp53cqme" path="res://scripts/resources/WeaponData.gd" id="1_wpn"]
 
 [resource]
 script = ExtResource("1_wpn")
 weapon_id = "hunting_bow"
 weapon_name = "Heavy Crossbow"
 category = 2
-attack_type = "PHYSICAL"
 base_attack_bonus = 20
 attack_range = 8.5
 attack_cooldown = 0.55
@@ -15,5 +14,4 @@ hitbox_shape_radius = 2.0
 blade_color = Color(0.65, 0.45, 0.25, 1)
 hilt_color = Color(0.2, 0.2, 0.2, 1)
 model_path = "res://assets/models/adventurers/crossbow_2handed.gltf"
-offhand_model_path = ""
 attack_anim_name = "Ranged_Shoot"

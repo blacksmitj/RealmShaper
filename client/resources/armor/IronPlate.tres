@@ -1,15 +1,12 @@
-[gd_resource type="Resource" script_class="ArmorData" load_steps=2 format=3 uid="uid://e4x7b8p1w2q9m"]
+[gd_resource type="Resource" script_class="ArmorData" format=3 uid="uid://bakcp6ssduviu"]
 
-[ext_resource type="Script" path="res://scripts/resources/ArmorData.gd" id="1_arm"]
+[ext_resource type="Script" uid="uid://dogjdr7vjor2x" path="res://scripts/resources/ArmorData.gd" id="1_arm"]
 
 [resource]
 script = ExtResource("1_arm")
-armor_id = "iron_plate"
 armor_name = "Knight's Heavy Bastion"
-slot = 0
 defense_bonus = 20
 max_hp_bonus = 80
 move_speed_bonus = -0.3
-character_model_index = 0
 primary_color = Color(0.75, 0.76, 0.82, 1)
 trim_color = Color(0.85, 0.72, 0.25, 1)

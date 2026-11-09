@@ -1,12 +1,11 @@
-[gd_resource type="Resource" script_class="ArmorData" load_steps=2 format=3 uid="uid://fy9q1w3e5r7t8"]
+[gd_resource type="Resource" script_class="ArmorData" format=3 uid="uid://b4uvgu55llc3h"]
 
-[ext_resource type="Script" path="res://scripts/resources/ArmorData.gd" id="1_arm"]
+[ext_resource type="Script" uid="uid://dogjdr7vjor2x" path="res://scripts/resources/ArmorData.gd" id="1_arm"]
 
 [resource]
 script = ExtResource("1_arm")
 armor_id = "shadow_robe"
 armor_name = "Shadow Assassin Robe"
-slot = 0
 defense_bonus = 10
 max_hp_bonus = 30
 move_speed_bonus = 0.8
