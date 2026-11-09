@@ -17,6 +17,8 @@ enum ConnectionState {
 	RECONNECTING
 }
 
+const GUEST_CFG_PATH: String = "user://guest.cfg"
+
 @export var server_url: String = "ws://127.0.0.1:8080/ws"
 @export var auto_reconnect: bool = true
 @export var reconnect_delay: float = 3.0
@@ -121,9 +123,27 @@ func send_equipment_change(weapon_id: String, armor_id: String) -> void:
 
 func _send_auth_packet() -> void:
 	send_packet("C2S_AUTH", {
+		"guest_id": _get_or_create_guest_id(),
 		"client_version": "0.2.0",
 		"device_platform": OS.get_name()
 	})
+
+## Guest id persisten per-device (sementara, sebelum sistem auth akun).
+func _get_or_create_guest_id() -> String:
+	var cfg: ConfigFile = ConfigFile.new()
+	var err: Error = cfg.load(GUEST_CFG_PATH)
+	if err == OK:
+		var saved: String = str(cfg.get_value("auth", "guest_id", ""))
+		if not saved.is_empty():
+			return saved
+	var bytes: PackedByteArray = Crypto.new().generate_random_bytes(16)
+	bytes[6] = (bytes[6] & 0x0f) | 0x40
+	bytes[8] = (bytes[8] & 0x3f) | 0x80
+	var hex: String = bytes.hex_encode()
+	var guest_id: String = "%s-%s-%s-%s-%s" % [hex.substr(0, 8), hex.substr(8, 4), hex.substr(12, 4), hex.substr(16, 4), hex.substr(20, 12)]
+	cfg.set_value("auth", "guest_id", guest_id)
+	cfg.save(GUEST_CFG_PATH)
+	return guest_id
 
 func _handle_incoming_packet(packet_str: String) -> void:
 	var json: JSON = JSON.new()

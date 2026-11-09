@@ -7,17 +7,30 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "init:infra": "tsx src/scripts/init-infra.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/models/migrate.ts",
+    "db:seed": "tsx src/models/seed.ts",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "fastify": "^5.2.1",
-    "@fastify/websocket": "^11.0.2",
+    "@aws-sdk/client-s3": "^3.1164.0",
+    "@aws-sdk/s3-request-presigner": "^3.1164.0",
     "@fastify/cors": "^10.0.2",
-    "ws": "^8.18.0"
+    "@fastify/websocket": "^11.0.2",
+    "dotenv": "^18.0.9",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.2.1",
+    "postgres": "^4.1.0",
+    "ws": "^8.18.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.13.1",
     "@types/ws": "^8.5.14",
+    "drizzle-kit": "^0.31.11",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }

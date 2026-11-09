@@ -6,11 +6,13 @@ import { TextureCanvas } from './modules/tex-painter/components/TextureCanvas';
 import { TextureToolbar } from './modules/tex-painter/components/TextureToolbar';
 import { QuestGraphCanvas } from './modules/quest-editor/components/QuestGraphCanvas';
 import { QuestToolbar } from './modules/quest-editor/components/QuestToolbar';
-import { Map, Activity, Palette, GitBranch } from 'lucide-react';
+import { Map, Activity, Palette, GitBranch, Database, HardDrive, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useServerHealth } from './hooks/usePgcQueries';
 
 export function App() {
   const [activeModule, setActiveModule] = useState<'map' | 'stats' | 'texture' | 'quest'>('map');
+  const { data: serverStatus = { online: false, db: false, storage: false } } = useServerHealth();
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 font-sans">
@@ -77,9 +79,34 @@ export function App() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-500 font-mono">
-            All 4 Phases Complete (MVP Suite) | Desktop Browser Runtime
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded px-2 py-1">
+            <span className="flex items-center gap-1 text-[11px] font-mono text-slate-300">
+              {serverStatus.online ? (
+                <Wifi className="w-3 h-3 text-emerald-400" />
+              ) : (
+                <WifiOff className="w-3 h-3 text-rose-500" />
+              )}
+              <span>API</span>
+            </span>
+
+            <span className="flex items-center gap-1 text-[11px] font-mono text-slate-300 border-l border-slate-800 pl-2">
+              <Database
+                className={`w-3 h-3 ${serverStatus.db ? 'text-emerald-400' : 'text-slate-600'}`}
+              />
+              <span>Postgres</span>
+            </span>
+
+            <span className="flex items-center gap-1 text-[11px] font-mono text-slate-300 border-l border-slate-800 pl-2">
+              <HardDrive
+                className={`w-3 h-3 ${serverStatus.storage ? 'text-emerald-400' : 'text-slate-600'}`}
+              />
+              <span>RustFS</span>
+            </span>
+          </div>
+
+          <span className="text-[10px] text-slate-500 font-mono hidden xl:inline">
+            RealmShaper Studio v0.2.0
           </span>
         </div>
       </header>

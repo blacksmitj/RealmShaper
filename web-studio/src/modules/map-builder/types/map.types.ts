@@ -1,8 +1,171 @@
 export type ToolMode = 'floor' | 'wall' | 'eraser' | 'spawner' | 'portal' | 'prop';
 
+export type DragPaintMode = 'brush' | 'box';
+
+export type WallStackMode = 'increment' | 'fixed';
+
+export type EnvironmentTheme = 'medieval_day' | 'gothic_night';
+
+export type MapPresetId = 'medieval_town' | 'catacombs';
+
+export interface FloorMaterialMeta {
+  id: number;
+  name: string;
+  category: 'town' | 'nature' | 'dungeon';
+  swatchColor: string;
+  description: string;
+}
+
+export interface PropPrefabMeta {
+  id: string;
+  name: string;
+  category: 'nature' | 'medieval' | 'dungeon';
+  description: string;
+}
+
+export const FLOOR_MATERIALS: readonly FloorMaterialMeta[] = [
+  {
+    id: 2,
+    name: 'Medieval Cobblestone',
+    category: 'town',
+    swatchColor: '#64748b',
+    description: 'Paved medieval town road & plaza stones',
+  },
+  {
+    id: 6,
+    name: 'Lush Grass Meadow',
+    category: 'nature',
+    swatchColor: '#22c55e',
+    description: 'Verdant green grass field with natural blades',
+  },
+  {
+    id: 7,
+    name: 'River Water (Flowing)',
+    category: 'nature',
+    swatchColor: '#0ea5e9',
+    description: 'Animated flowing river stream with ripples',
+  },
+  {
+    id: 3,
+    name: 'Dirt Pathway',
+    category: 'nature',
+    swatchColor: '#92400e',
+    description: 'Compacted earth trail with pebbles',
+  },
+  {
+    id: 8,
+    name: 'Timber Wood Deck',
+    category: 'town',
+    swatchColor: '#b45309',
+    description: 'Stained oak planks for piers & town squares',
+  },
+  {
+    id: 1,
+    name: 'Fortress Border Stone',
+    category: 'dungeon',
+    swatchColor: '#334155',
+    description: 'Heavy dark ashlar masonry slabs',
+  },
+  {
+    id: 4,
+    name: 'Royal Crimson Carpet',
+    category: 'town',
+    swatchColor: '#991b1b',
+    description: 'Ornate woven red runner with gold trim',
+  },
+  {
+    id: 5,
+    name: 'Mossy Ancient Ruins',
+    category: 'dungeon',
+    swatchColor: '#115e59',
+    description: 'Weathered temple stones overgrown with moss',
+  },
+] as const;
+
+export const PROP_PREFABS: readonly PropPrefabMeta[] = [
+  {
+    id: 'oak_tree',
+    name: 'Oak Tree (Pohon Rindang)',
+    category: 'nature',
+    description: 'Lush deciduous oak tree with layered foliage canopy',
+  },
+  {
+    id: 'pine_tree',
+    name: 'Pine Tree (Pohon Cemara)',
+    category: 'nature',
+    description: 'Tall evergreen conifer tree for forests & hills',
+  },
+  {
+    id: 'grass_tuft',
+    name: '3D Grass & Wildflowers',
+    category: 'nature',
+    description: 'Walkable 3D grass blades with colorful wildflowers',
+  },
+  {
+    id: 'wood_bridge',
+    name: 'Wooden River Bridge',
+    category: 'nature',
+    description: 'Arched timber bridge with side railings for crossing rivers',
+  },
+  {
+    id: 'tudor_house',
+    name: 'Medieval Tudor House',
+    category: 'medieval',
+    description: 'Half-timbered medieval house with pitched roof & warm windows',
+  },
+  {
+    id: 'town_fountain',
+    name: 'Town Plaza Fountain',
+    category: 'medieval',
+    description: 'Octagonal stone basin with tiered water spout',
+  },
+  {
+    id: 'street_lantern',
+    name: 'Wrought Iron Street Lantern',
+    category: 'medieval',
+    description: 'Tall iron lamppost casting warm medieval street light',
+  },
+  {
+    id: 'market_stall',
+    name: 'Medieval Market Stall',
+    category: 'medieval',
+    description: 'Merchant booth with striped canopy & crates',
+  },
+  {
+    id: 'wood_fence',
+    name: 'Timber & Stone Fence',
+    category: 'medieval',
+    description: 'Rustic wooden rail fence with stone posts',
+  },
+  {
+    id: 'pillar',
+    name: 'Gothic Stone Pillar',
+    category: 'dungeon',
+    description: 'Fluted stone column with gold trim ring',
+  },
+  {
+    id: 'torch',
+    name: 'Standing Brazier Torch',
+    category: 'dungeon',
+    description: 'Lit fire brazier with warm flickering glow',
+  },
+  {
+    id: 'chest',
+    name: 'Treasure Chest',
+    category: 'dungeon',
+    description: 'Iron-bound wooden loot chest with gold lock',
+  },
+  {
+    id: 'barrel',
+    name: 'Tavern Oak Barrel',
+    category: 'dungeon',
+    description: 'Hooped wooden storage cask',
+  },
+] as const;
+
 export interface SpawnerData {
   id: string;
-  type: string; // e.g. 'dummy', 'skeleton', 'boss'
+  type: string; // e.g. 'dummy', 'skeleton_warrior', 'dark_cultist', 'dungeon_boss'
   x: number;
   y: number;
 }
@@ -17,7 +180,7 @@ export interface PortalData {
 
 export interface PropData {
   id: string;
-  prefab_id: string; // e.g. 'pillar', 'torch', 'chest', 'barrel'
+  prefab_id: string;
   grid_x: number;
   grid_y: number;
   rotation_deg: number; // 0, 90, 180, 270
@@ -38,4 +201,3 @@ export interface MapData {
   portals: Array<{ grid_x: number; grid_y: number; target_map_id: string; label: string }>;
   props?: Array<{ prefab_id: string; grid_x: number; grid_y: number; rotation_deg: number }>;
 }
-

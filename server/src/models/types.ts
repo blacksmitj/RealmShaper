@@ -6,7 +6,9 @@ export interface Vector3D {
 
 export interface PlayerEntity {
   id: string;
+  characterId: string;
   name: string;
+  mapId: string;
   position: Vector3D;
   velocity: Vector3D;
   facing: number;

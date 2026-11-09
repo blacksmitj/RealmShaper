@@ -1,4 +1,5 @@
-import { PlayerEntity, Vector3D } from '../models/types.js';
+import { PlayerEntity } from '../models/types.js';
+import type { CharacterSnapshot } from './ports/CharacterRepository.js';
 
 /**
  * Isolated Game Engine (Domain Logic Murni 3D).
@@ -27,16 +28,18 @@ export class GameEngine {
     }
   }
 
-  public registerPlayer(id: string, name: string): PlayerEntity {
+  public registerPlayer(id: string, snapshot: CharacterSnapshot): PlayerEntity {
     const player: PlayerEntity = {
       id,
-      name,
-      position: { x: 0.0, y: 0.0, z: 2.0 },
+      characterId: snapshot.characterId,
+      name: snapshot.name,
+      mapId: snapshot.mapId,
+      position: { ...snapshot.position },
       velocity: { x: 0.0, y: 0.0, z: 0.0 },
-      facing: 0.0,
+      facing: snapshot.facing,
       state: 0,
-      health: 150,
-      maxHealth: 150,
+      health: snapshot.hp,
+      maxHealth: snapshot.maxHp,
       weaponId: 'iron_greatsword',
       armorId: 'iron_plate',
       lastActive: Date.now()
@@ -51,6 +54,30 @@ export class GameEngine {
 
   public getPlayer(id: string): PlayerEntity | undefined {
     return this.players.get(id);
+  }
+
+  /** Snapshot persistence untuk satu/semua player (dipakai autosave & disconnect). */
+  public snapshotPlayer(id: string): CharacterSnapshot | undefined {
+    const p = this.players.get(id);
+    if (!p) return undefined;
+    return {
+      characterId: p.characterId,
+      name: p.name,
+      hp: p.health,
+      maxHp: p.maxHealth,
+      mapId: p.mapId,
+      position: { ...p.position },
+      facing: p.facing
+    };
+  }
+
+  public snapshotAll(): CharacterSnapshot[] {
+    const out: CharacterSnapshot[] = [];
+    for (const id of this.players.keys()) {
+      const s = this.snapshotPlayer(id);
+      if (s) out.push(s);
+    }
+    return out;
   }
 
   public updatePlayerMovement(

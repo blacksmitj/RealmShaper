@@ -7,9 +7,13 @@ import {
   Sun,
   Shield,
   Flame,
+  CloudUpload,
+  Loader2,
+  CheckCircle2,
 } from 'lucide-react';
 import { useTextureStore } from '../stores/textureStore';
 import type { TexturePreset } from '../types/texture.types';
+import { usePublishAsset } from '@/hooks/usePgcQueries';
 
 // Shadcn UI Components
 import { Button } from '@/components/ui/button';
@@ -37,6 +41,21 @@ export const TextureToolbar: React.FC = () => {
   } = useTextureStore();
 
   const currentMat = preset.materialSlots[activeSlot];
+
+  const publishMutation = usePublishAsset();
+
+  const handlePublishCloud = async () => {
+    try {
+      const jsonStr = exportPresetJson();
+      await publishMutation.mutateAsync({
+        kind: 'texture',
+        contentType: 'application/json',
+        data: jsonStr,
+      });
+    } catch (err: any) {
+      alert(`Gagal publish texture ke RustFS: ${err.message}`);
+    }
+  };
 
   const handleExport = () => {
     const jsonStr = exportPresetJson();
@@ -292,10 +311,31 @@ export const TextureToolbar: React.FC = () => {
           <Button
             size="sm"
             onClick={handleExport}
-            className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs gap-1.5 shadow-md shadow-cyan-950 font-medium"
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs gap-1.5 font-medium"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export Material</span>
+            <span>Export</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={handlePublishCloud}
+            disabled={publishMutation.isPending}
+            className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs gap-1.5 shadow-md shadow-cyan-950 font-medium"
+          >
+            {publishMutation.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : publishMutation.isSuccess ? (
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+            ) : (
+              <CloudUpload className="w-3.5 h-3.5" />
+            )}
+            <span>
+              {publishMutation.isPending
+                ? 'Uploading...'
+                : publishMutation.isSuccess
+                ? 'Published!'
+                : 'Publish'}
+            </span>
           </Button>
         </div>
       </div>
