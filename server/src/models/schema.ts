@@ -3,6 +3,7 @@ import {
   pgEnum,
   uuid,
   text,
+  boolean,
   integer,
   bigint,
   real,
@@ -144,10 +145,12 @@ export const mapDrafts = pgTable(
     mapId: text('map_id').notNull(),
     mapName: text('map_name').notNull(),
     mapData: jsonb('map_data').$type<Record<string, any>>().notNull(),
+    isPublished: boolean('is_published').notNull().default(false),
     ...timestamps
   },
   (t) => [
     index('map_drafts_owner_idx').on(t.ownerAccountId),
+    index('map_drafts_published_idx').on(t.isPublished),
     uniqueIndex('map_drafts_owner_map_id_uq').on(t.ownerAccountId, t.mapId)
   ]
 );

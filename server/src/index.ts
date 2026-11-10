@@ -12,6 +12,14 @@ import { registerMapDraftRoutes } from './api/mapDrafts.js';
 const app = Fastify({ logger: { level: 'info' } });
 const storage = new StorageService();
 
+app.setErrorHandler((error: Error, request, reply) => {
+  request.log.error(error);
+  reply.status(500).send({
+    error: error.message || 'Internal Server Error',
+    detail: (error as any).detail || undefined,
+  });
+});
+
 if (!(await pingDb())) {
   console.error('[Boot] Cannot connect to PostgreSQL. Check DATABASE_URL.');
   process.exit(1);

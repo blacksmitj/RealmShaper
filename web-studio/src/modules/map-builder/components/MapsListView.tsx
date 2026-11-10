@@ -1,12 +1,12 @@
 import React from 'react';
 import type { LegacyColumnDef } from '@tanstack/react-table/legacy';
-import { useMapDrafts, useDeleteMapDraft } from '@/hooks/usePgcQueries';
+import { useMapDrafts, useDeleteMapDraft, useTogglePublishMap } from '@/hooks/usePgcQueries';
 import { fetchMapDraftDetail, type MapDraftSummary } from '@/lib/pgcService';
 import { useMapStore } from '@/modules/map-builder/stores/mapStore';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Map, Calendar, Grid, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, Map, Calendar, Grid, Loader2, RefreshCw, Globe, Lock } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,15 +25,31 @@ interface MapsListViewProps {
 export const MapsListView: React.FC<MapsListViewProps> = ({ onOpenMapEditor }) => {
   const { data: drafts = [], isLoading, isFetching, refetch } = useMapDrafts();
   const deleteMutation = useDeleteMapDraft();
+  const togglePublishMutation = useTogglePublishMap();
   const resetMap = useMapStore((state) => state.resetMap);
   const loadFromMapData = useMapStore((state) => state.loadFromMapData);
 
   const [loadingDraftId, setLoadingDraftId] = React.useState<string | null>(null);
+  const [publishingDraftId, setPublishingDraftId] = React.useState<string | null>(null);
   const [draftToDelete, setDraftToDelete] = React.useState<MapDraftSummary | null>(null);
 
   const handleCreateNew = () => {
     resetMap();
     onOpenMapEditor();
+  };
+
+  const handleTogglePublish = async (draft: MapDraftSummary) => {
+    try {
+      setPublishingDraftId(draft.id);
+      await togglePublishMutation.mutateAsync({
+        id: draft.id,
+        isPublished: !draft.is_published,
+      });
+    } catch {
+      alert('Gagal mengubah status publish realm.');
+    } finally {
+      setPublishingDraftId(null);
+    }
   };
 
   const handleEditDraft = async (draft: MapDraftSummary) => {
@@ -94,6 +110,24 @@ export const MapsListView: React.FC<MapsListViewProps> = ({ onOpenMapEditor }) =
       },
     },
     {
+      id: 'publish_status',
+      header: 'Status Game',
+      cell: ({ row }) => {
+        const isPub = row.original.is_published;
+        return (
+          <Badge
+            variant={isPub ? 'default' : 'secondary'}
+            className={`text-[10px] font-medium gap-1 ${
+              isPub ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30' : 'text-muted-foreground'
+            }`}
+          >
+            {isPub ? <Globe className="w-3 h-3 text-emerald-400" /> : <Lock className="w-3 h-3" />}
+            {isPub ? 'Published' : 'Draft'}
+          </Badge>
+        );
+      },
+    },
+    {
       id: 'dimensions',
       header: 'Dimensi Grid',
       cell: ({ row }) => {
@@ -124,9 +158,30 @@ export const MapsListView: React.FC<MapsListViewProps> = ({ onOpenMapEditor }) =
       cell: ({ row }) => {
         const item = row.original;
         const isLoadingThis = loadingDraftId === item.id;
+        const isPublishingThis = publishingDraftId === item.id;
 
         return (
           <div className="flex items-center justify-end gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleTogglePublish(item)}
+              disabled={isPublishingThis}
+              className={`h-7 px-2 text-xs gap-1 border ${
+                item.is_published
+                  ? 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10'
+                  : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'
+              }`}
+            >
+              {isPublishingThis ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : item.is_published ? (
+                <Lock className="w-3 h-3" />
+              ) : (
+                <Globe className="w-3 h-3" />
+              )}
+              <span>{item.is_published ? 'Unpublish' : 'Publish Realm'}</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"

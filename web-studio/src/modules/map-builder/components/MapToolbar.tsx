@@ -15,6 +15,7 @@ import {
   SquareDashed,
   CloudUpload,
   Loader2,
+  AlertCircle,
   CheckCircle2,
   Settings,
 } from 'lucide-react';
@@ -183,11 +184,18 @@ export const MapToolbar: React.FC = () => {
 
   const handleSaveDraft = () => {
     const mapData = exportToMapData();
-    saveDraftMutation.mutate({
-      mapId,
-      mapName,
-      mapData,
-    });
+    saveDraftMutation.mutate(
+      {
+        mapId,
+        mapName,
+        mapData,
+      },
+      {
+        onError: (err: any) => {
+          alert(`Gagal menyimpan draft ke server: ${err?.message || 'Server 8080 offline / tidak terjangkau'}`);
+        },
+      }
+    );
   };
 
   // Handle Prop File & Texture Selection & Re-pack Snapshot
@@ -1099,12 +1107,18 @@ export const MapToolbar: React.FC = () => {
             size="sm"
             onClick={handleSaveDraft}
             disabled={saveDraftMutation.isPending}
-            className="w-full h-8 text-xs bg-muted/40 border-border text-foreground hover:bg-muted font-medium gap-1.5"
+            className={`w-full h-8 text-xs font-medium gap-1.5 ${
+              saveDraftMutation.isError
+                ? 'bg-destructive/20 border-destructive/50 text-destructive hover:bg-destructive/30'
+                : 'bg-muted/40 border-border text-foreground hover:bg-muted'
+            }`}
           >
             {saveDraftMutation.isPending ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
             ) : saveDraftMutation.isSuccess ? (
               <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+            ) : saveDraftMutation.isError ? (
+              <AlertCircle className="w-3.5 h-3.5 text-destructive" />
             ) : (
               <Save className="w-3.5 h-3.5 text-primary" />
             )}
@@ -1113,6 +1127,8 @@ export const MapToolbar: React.FC = () => {
                 ? 'Menyimpan Draft...'
                 : saveDraftMutation.isSuccess
                 ? 'Draft Tersimpan!'
+                : saveDraftMutation.isError
+                ? 'Gagal (Cek Server 8080)'
                 : 'Save Draft to Database'}
             </span>
           </Button>

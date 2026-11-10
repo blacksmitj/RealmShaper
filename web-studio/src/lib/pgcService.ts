@@ -153,6 +153,7 @@ export interface MapDraftSummary {
   id: string;
   map_id: string;
   map_name: string;
+  is_published?: boolean;
   width: number;
   height: number;
   theme: string;
@@ -164,6 +165,7 @@ export interface MapDraftDetail {
   id: string;
   map_id: string;
   map_name: string;
+  is_published?: boolean;
   map_data: any;
   created_at: string;
   updated_at: string;
@@ -227,6 +229,27 @@ export async function deleteMapDraft(id: string): Promise<{ success: boolean; id
 
   if (!res.ok) {
     throw new Error(`Failed to delete map draft (${res.status})`);
+  }
+  return res.json();
+}
+
+/**
+ * Mempublikasikan atau mencabut status publish map
+ */
+export async function togglePublishMap(id: string, isPublished: boolean): Promise<{ id: string; map_id: string; is_published: boolean }> {
+  const guestId = getOrCreateCreatorGuestId();
+  const res = await fetch(`${API_BASE}/api/maps/drafts/${encodeURIComponent(id)}/publish`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      guest_id: guestId,
+      is_published: isPublished,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to update publish status (${res.status})`);
   }
   return res.json();
 }

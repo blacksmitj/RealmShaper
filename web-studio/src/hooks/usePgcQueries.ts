@@ -7,6 +7,7 @@ import {
   fetchMapDrafts,
   saveMapDraft,
   deleteMapDraft,
+  togglePublishMap,
   type PgcKind,
   type UploadAssetParams,
 } from '../lib/pgcService';
@@ -111,6 +112,21 @@ export function useDeleteMapDraft() {
 
   return useMutation({
     mutationFn: (id: string) => deleteMapDraft(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PGC_QUERY_KEYS.mapDrafts });
+    },
+  });
+}
+
+/**
+ * Hook mutation untuk toggle publish status map draft
+ */
+export function useTogglePublishMap() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, isPublished }: { id: string; isPublished: boolean }) =>
+      togglePublishMap(id, isPublished),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PGC_QUERY_KEYS.mapDrafts });
     },

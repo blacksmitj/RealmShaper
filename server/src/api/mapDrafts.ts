@@ -65,6 +65,7 @@ export async function registerMapDraftRoutes(app: FastifyInstance, db: Database)
         id: mapDrafts.id,
         map_id: mapDrafts.mapId,
         map_name: mapDrafts.mapName,
+        is_published: mapDrafts.isPublished,
         created_at: mapDrafts.createdAt,
         updated_at: mapDrafts.updatedAt,
         width: mapDrafts.mapData,
@@ -81,6 +82,7 @@ export async function registerMapDraftRoutes(app: FastifyInstance, db: Database)
         id: r.id,
         map_id: r.map_id,
         map_name: r.map_name,
+        is_published: r.is_published,
         width: data?.width ?? 20,
         height: data?.height ?? 20,
         theme: data?.theme ?? 'dungeon',
@@ -144,6 +146,96 @@ export async function registerMapDraftRoutes(app: FastifyInstance, db: Database)
 
     await db.delete(mapDrafts).where(eq(mapDrafts.id, id));
     return { success: true, id };
+  });
+
+  // 5. Publish / Unpublish Realm Map (Web Studio Creator)
+  app.patch<{ Params: { id: string }; Body: { guest_id: string; is_published: boolean } }>(
+    '/api/maps/drafts/:id/publish',
+    async (req, reply) => {
+      const { id } = req.params;
+      const { guest_id, is_published } = req.body ?? {};
+      if (!guest_id || typeof is_published !== 'boolean') {
+        return reply.code(400).send({ error: 'guest_id and boolean is_published are required' });
+      }
+
+      const rows = await db
+        .select({ id: mapDrafts.id })
+        .from(mapDrafts)
+        .innerJoin(accounts, eq(accounts.id, mapDrafts.ownerAccountId))
+        .where(and(eq(mapDrafts.id, id), eq(accounts.guestId, guest_id)))
+        .limit(1);
+
+      if (!rows[0]) {
+        return reply.code(404).send({ error: 'draft_not_found' });
+      }
+
+      const [updated] = await db
+        .update(mapDrafts)
+        .set({ isPublished: is_published, updatedAt: new Date() })
+        .where(eq(mapDrafts.id, id))
+        .returning();
+
+      return {
+        id: updated.id,
+        map_id: updated.mapId,
+        is_published: updated.isPublished,
+        updated_at: updated.updatedAt
+      };
+    }
+  );
+
+  // 6. Public Endpoint: List Published Realms (Untuk Godot Client Portal)
+  app.get('/api/maps/public', async (_req, _reply) => {
+    const rows = await db
+      .select({
+        id: mapDrafts.id,
+        map_id: mapDrafts.mapId,
+        map_name: mapDrafts.mapName,
+        owner_guest: accounts.guestId,
+        created_at: mapDrafts.createdAt,
+        updated_at: mapDrafts.updatedAt,
+        map_data: mapDrafts.mapData
+      })
+      .from(mapDrafts)
+      .innerJoin(accounts, eq(accounts.id, mapDrafts.ownerAccountId))
+      .where(eq(mapDrafts.isPublished, true))
+      .orderBy(desc(mapDrafts.updatedAt));
+
+    return rows.map((r) => {
+      const data = r.map_data as Record<string, any>;
+      return {
+        id: r.id,
+        map_id: r.map_id,
+        map_name: r.map_name,
+        author: `Creator_${r.owner_guest.substring(0, 6)}`,
+        width: data?.width ?? 20,
+        height: data?.height ?? 20,
+        theme: data?.theme ?? 'medieval_day',
+        updated_at: r.updated_at
+      };
+    });
+  });
+
+  // 7. Public Endpoint: Get Full Map Data Payload (Untuk Godot Client Load)
+  app.get<{ Params: { id: string } }>('/api/maps/public/:id', async (req, reply) => {
+    const { id } = req.params;
+
+    const rows = await db
+      .select({
+        id: mapDrafts.id,
+        map_id: mapDrafts.mapId,
+        map_name: mapDrafts.mapName,
+        map_data: mapDrafts.mapData
+      })
+      .from(mapDrafts)
+      .where(and(eq(mapDrafts.id, id), eq(mapDrafts.isPublished, true)))
+      .limit(1);
+
+    if (!rows[0]) {
+      return reply.code(404).send({ error: 'published_map_not_found' });
+    }
+
+    return rows[0].map_data;
   });
 }
 
