@@ -12,6 +12,7 @@ interface VoxelBlockMeshProps {
   textureVersion?: number;
   onClick?: (e: any) => void;
   onPointerDown?: (e: any) => void;
+  onPointerMove?: (e: any) => void;
 }
 
 export const VoxelBlockMesh: React.FC<VoxelBlockMeshProps> = ({
@@ -24,6 +25,7 @@ export const VoxelBlockMesh: React.FC<VoxelBlockMeshProps> = ({
   textureVersion,
   onClick,
   onPointerDown,
+  onPointerMove,
 }) => {
   const blockTex = useMemo(() => {
     if (materialId > 0) {
@@ -47,6 +49,7 @@ export const VoxelBlockMesh: React.FC<VoxelBlockMeshProps> = ({
         receiveShadow
         onClick={onClick}
         onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
       >
         <boxGeometry args={[1.96, STONE_BLOCK_HEIGHT - 0.02, 1.96]} />
         <meshStandardMaterial

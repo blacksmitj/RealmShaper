@@ -148,3 +148,86 @@ export async function checkServerHealth(): Promise<{
     return { online: false, db: false, storage: false };
   }
 }
+
+export interface MapDraftSummary {
+  id: string;
+  map_id: string;
+  map_name: string;
+  width: number;
+  height: number;
+  theme: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MapDraftDetail {
+  id: string;
+  map_id: string;
+  map_name: string;
+  map_data: any;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Mengambil daftar ringkasan draft map milik pengguna saat ini
+ */
+export async function fetchMapDrafts(): Promise<MapDraftSummary[]> {
+  const guestId = getOrCreateCreatorGuestId();
+  const res = await fetch(`${API_BASE}/api/maps/drafts?guest_id=${encodeURIComponent(guestId)}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch map drafts (${res.status})`);
+  }
+  return res.json();
+}
+
+/**
+ * Mengambil 1 detail draft map lengkap
+ */
+export async function fetchMapDraftDetail(id: string): Promise<MapDraftDetail> {
+  const guestId = getOrCreateCreatorGuestId();
+  const res = await fetch(`${API_BASE}/api/maps/drafts/${encodeURIComponent(id)}?guest_id=${encodeURIComponent(guestId)}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch map draft detail (${res.status})`);
+  }
+  return res.json();
+}
+
+/**
+ * Menyimpan / memperbarui (upsert) draft map ke database
+ */
+export async function saveMapDraft(mapId: string, mapName: string, mapData: any): Promise<{ id: string; map_id: string; map_name: string; updated_at: string }> {
+  const guestId = getOrCreateCreatorGuestId();
+  const res = await fetch(`${API_BASE}/api/maps/drafts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      guest_id: guestId,
+      map_id: mapId,
+      map_name: mapName,
+      map_data: mapData,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to save map draft (${res.status})`);
+  }
+  return res.json();
+}
+
+/**
+ * Menghapus draft map dari database
+ */
+export async function deleteMapDraft(id: string): Promise<{ success: boolean; id: string }> {
+  const guestId = getOrCreateCreatorGuestId();
+  const res = await fetch(`${API_BASE}/api/maps/drafts/${encodeURIComponent(id)}?guest_id=${encodeURIComponent(guestId)}`, {
+    method: 'DELETE',
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to delete map draft (${res.status})`);
+  }
+  return res.json();
+}
+

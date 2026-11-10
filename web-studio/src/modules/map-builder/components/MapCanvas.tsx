@@ -24,7 +24,9 @@ import { Badge } from '@/components/ui/badge';
 
 interface HoveredCell {
   x: number;
-  y: number;
+  y: number; // grid Z
+  voxelY?: number; // Y level (0..19), optional
+  faceNormal?: { x: number; y: number; z: number }; // Normal sisi block tempat ditempelkan
 }
 
 const getCompassDirectionLabel = (deg: number): string => {
@@ -61,7 +63,7 @@ export const MapCanvas: React.FC = () => {
 
   return (
     <div
-      className="w-full h-full relative bg-slate-950 overflow-hidden select-none"
+      className="w-full h-full relative bg-background overflow-hidden select-none"
       onContextMenu={(e) => e.preventDefault()}
     >
       <Canvas
@@ -127,35 +129,35 @@ export const MapCanvas: React.FC = () => {
       </Canvas>
 
       {/* Top-Left Viewport Instructions Overlay */}
-      <div className="absolute top-4 left-4 pointer-events-none bg-slate-950/85 backdrop-blur-md border border-slate-800 rounded-lg p-3 text-xs text-slate-300 space-y-1.5 shadow-xl">
+      <div className="absolute top-4 left-4 pointer-events-none bg-card/85 backdrop-blur-md border border-border rounded-lg p-3 text-xs text-foreground space-y-1.5 shadow-xl">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-cyan-400">3D Viewport Controls (2.0m Grid)</span>
-          <Badge variant="outline" className="border-cyan-800 text-cyan-300 text-[10px] h-4 px-1.5">
+          <span className="font-semibold text-primary">3D Viewport Controls (2.0m Grid)</span>
+          <Badge variant="outline" className="border-border text-primary text-[10px] h-4 px-1.5">
             {dragPaintMode === 'box' ? 'Box Area Fill' : 'Brush Drag'}
           </Badge>
         </div>
-        <p className="text-[11px] text-slate-400">
-          <strong className="text-cyan-300">Left Click + Drag:</strong> Apply to dragged region ({dragPaintMode === 'box' ? 'Rectangle Area' : 'Brush Stroke'})
+        <p className="text-[11px] text-muted-foreground">
+          <strong className="text-foreground">Left Click + Drag:</strong> Apply to dragged region ({dragPaintMode === 'box' ? 'Rectangle Area' : 'Brush Stroke'})
         </p>
-        <p className="text-[11px] text-slate-400">
-          <strong className="text-slate-200">Scroll Wheel:</strong> Zoom In / Out
+        <p className="text-[11px] text-muted-foreground">
+          <strong className="text-foreground">Scroll Wheel:</strong> Zoom In / Out
         </p>
-        <p className="text-[11px] text-slate-400">
-          <strong className="text-emerald-300">Wheel Click + Drag:</strong> Pan Move Up / Down / Left / Right
+        <p className="text-[11px] text-muted-foreground">
+          <strong className="text-success">Wheel Click + Drag:</strong> Pan Move Up / Down / Left / Right
         </p>
-        <p className="text-[11px] text-slate-400">
-          <strong className="text-amber-300">Right Click + Drag:</strong> Orbit Rotate Camera
+        <p className="text-[11px] text-muted-foreground">
+          <strong className="text-warning">Right Click + Drag:</strong> Orbit Rotate Camera
         </p>
         {activeTool === 'prop' && (
-          <div className="pt-1 mt-1 border-t border-slate-800 text-[11px] text-cyan-300">
-            <strong className="text-white">Q / E (or R):</strong> Rotate Prop (±90°, Shift: ±45°) |{' '}
-            <strong className="text-slate-200">Alt + Scroll:</strong> Quick Spin
+          <div className="pt-1 mt-1 border-t border-border text-[11px] text-primary">
+            <strong className="text-foreground">Q / E (or R):</strong> Rotate Prop (±90°, Shift: ±45°) |{' '}
+            <strong className="text-muted-foreground">Alt + Scroll:</strong> Quick Spin
           </div>
         )}
       </div>
 
       {/* Top-Right Drag Mode, Tool Context & Lighting Bar */}
-      <div className="absolute top-4 right-4 flex items-center gap-2 bg-slate-950/85 backdrop-blur-md border border-slate-800 rounded-lg p-1.5 shadow-xl">
+      <div className="absolute top-4 right-4 flex items-center gap-2 bg-card/85 backdrop-blur-md border border-border rounded-lg p-1.5 shadow-xl">
         {/* Pointer / Select Tool Trigger */}
         <Button
           variant={activeTool === 'select' ? 'secondary' : 'ghost'}
@@ -164,8 +166,8 @@ export const MapCanvas: React.FC = () => {
           title="Select / Cursor Mode [V / Esc]"
           className={`h-7 px-2.5 text-xs gap-1.5 ${
             activeTool === 'select'
-              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-medium'
-              : 'text-slate-400 hover:text-white'
+              ? 'bg-primary/20 text-primary border border-primary/40 font-medium'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <MousePointer className="w-3.5 h-3.5" />
@@ -173,15 +175,15 @@ export const MapCanvas: React.FC = () => {
         </Button>
 
         {/* Brush vs Box Area Fill Toggle */}
-        <div className="flex items-center gap-1 pr-2 border-r border-slate-800">
+        <div className="flex items-center gap-1 pr-2 border-r border-border">
           <Button
             variant={dragPaintMode === 'brush' ? 'secondary' : 'ghost'}
             size="sm"
             onClick={() => setDragPaintMode('brush')}
             className={`h-7 px-2.5 text-xs gap-1.5 ${
               dragPaintMode === 'brush'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                : 'text-slate-400'
+                ? 'bg-primary/20 text-primary border border-primary/40'
+                : 'text-muted-foreground'
             }`}
           >
             <Paintbrush className="w-3.5 h-3.5" />
@@ -193,8 +195,8 @@ export const MapCanvas: React.FC = () => {
             onClick={() => setDragPaintMode('box')}
             className={`h-7 px-2.5 text-xs gap-1.5 ${
               dragPaintMode === 'box'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                : 'text-slate-400'
+                ? 'bg-primary/20 text-primary border border-primary/40'
+                : 'text-muted-foreground'
             }`}
           >
             <SquareDashed className="w-3.5 h-3.5" />
@@ -205,7 +207,7 @@ export const MapCanvas: React.FC = () => {
         {activeTool === 'wall' && (
           <Badge
             variant="secondary"
-            className="bg-amber-950/80 text-amber-300 border-amber-800/60 gap-1"
+            className="bg-warning/20 text-warning border-warning/40 gap-1"
           >
             <Layers className="w-3 h-3" />
             <span>
@@ -217,21 +219,21 @@ export const MapCanvas: React.FC = () => {
         )}
 
         {activeTool === 'prop' && (
-          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded-lg p-0.5 shadow-sm">
+          <div className="flex items-center gap-1 bg-muted/50 border border-border rounded-lg p-0.5 shadow-sm">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => rotateSelectedProp(-90)}
               title="Putar Kiri (-90°) [Q] (Shift: -45°)"
-              className="h-7 w-7 p-0 text-slate-400 hover:text-cyan-300 hover:bg-slate-800"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-muted"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </Button>
             <div className="flex flex-col items-center px-1.5 min-w-[56px] select-none">
-              <span className="text-[11px] font-mono font-bold text-cyan-300 leading-none">
+              <span className="text-[11px] font-mono font-bold text-primary leading-none">
                 {selectedPropRotation}°
               </span>
-              <span className="text-[8px] font-mono text-slate-400 leading-none mt-0.5">
+              <span className="text-[8px] font-mono text-muted-foreground leading-none mt-0.5">
                 {getCompassDirectionLabel(selectedPropRotation)}
               </span>
             </div>
@@ -240,7 +242,7 @@ export const MapCanvas: React.FC = () => {
               size="sm"
               onClick={() => rotateSelectedProp(90)}
               title="Putar Kanan (+90°) [E / R] (Shift: +45°)"
-              className="h-7 w-7 p-0 text-slate-400 hover:text-cyan-300 hover:bg-slate-800"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-muted"
             >
               <RotateCw className="w-3.5 h-3.5" />
             </Button>
@@ -252,7 +254,7 @@ export const MapCanvas: React.FC = () => {
           size="sm"
           onClick={() => setEnvironmentTheme('medieval_day')}
           className={`h-7 px-2.5 text-xs gap-1.5 ${
-            isDay ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-400'
+            isDay ? 'bg-warning/20 text-warning border border-warning/40' : 'text-muted-foreground'
           }`}
         >
           <Sun className="w-3.5 h-3.5" />
@@ -265,8 +267,8 @@ export const MapCanvas: React.FC = () => {
           onClick={() => setEnvironmentTheme('gothic_night')}
           className={`h-7 px-2.5 text-xs gap-1.5 ${
             !isDay
-              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
-              : 'text-slate-400'
+              ? 'bg-info/20 text-info border border-info/40'
+              : 'text-muted-foreground'
           }`}
         >
           <Moon className="w-3.5 h-3.5" />
@@ -518,6 +520,33 @@ const WorldGridScene: React.FC = () => {
     return null;
   };
 
+  // Convert 3D mesh face hit on existing voxel block to target adjacent/top voxel cell
+  const getVoxelCellFromFaceHit = (
+    hitNormal: THREE.Vector3,
+    blockX: number,
+    blockY: number,
+    blockZ: number
+  ): HoveredCell | null => {
+    // Normal in world space (box orientation is unrotated or Y-rotated)
+    const nx = Math.round(hitNormal.x);
+    const ny = Math.round(hitNormal.y);
+    const nz = Math.round(hitNormal.z);
+
+    const targetX = blockX + nx;
+    const targetY = blockZ + nz; // grid Y is Z coordinate
+    const targetVoxelY = Math.max(0, Math.min(19, blockY + ny));
+
+    if (targetX >= 0 && targetX < width && targetY >= 0 && targetY < height) {
+      return {
+        x: targetX,
+        y: targetY,
+        voxelY: targetVoxelY,
+        faceNormal: { x: nx, y: ny, z: nz },
+      };
+    }
+    return null;
+  };
+
   const applyBrushCellOnce = (cell: HoveredCell, shiftKey: boolean) => {
     const key = `${cell.x}_${cell.y}`;
     if (paintedCellsInStrokeRef.current.has(key)) return;
@@ -528,7 +557,7 @@ const WorldGridScene: React.FC = () => {
     } else if (activeTool === 'wall' && shiftKey) {
       decreaseWallAt(cell.x, cell.y);
     } else {
-      paintTile(cell.x, cell.y, false);
+      paintTile(cell.x, cell.y, false, cell.voxelY);
     }
   };
 
@@ -632,7 +661,7 @@ const WorldGridScene: React.FC = () => {
       return;
     }
 
-    if (!hovered || hovered.x !== cell.x || hovered.y !== cell.y) {
+    if (!hovered || hovered.x !== cell.x || hovered.y !== cell.y || hovered.voxelY !== undefined) {
       setHovered(cell);
     }
 
@@ -709,8 +738,18 @@ const WorldGridScene: React.FC = () => {
     return cells;
   }, [dragPaintMode, boxDragStart, hovered, width, height, collisionLayer]);
 
-  const hoveredIdx = hovered ? hovered.y * width + hovered.x : -1;
-  const hoveredWallHeight = hoveredIdx >= 0 ? (collisionLayer[hoveredIdx] ?? 0) : 0;
+  // Cari slot kosong terendah dari tanah (level 0) agar ruang di bawah block menggantung tetap bisa diisi
+  let groundStackHeight = 0;
+  if (hovered) {
+    while (
+      groundStackHeight < 20 &&
+      voxelBlocks[`${hovered.x}_${groundStackHeight}_${hovered.y}`]
+    ) {
+      groundStackHeight++;
+    }
+  }
+  const hoveredWallHeight =
+    hovered?.voxelY !== undefined ? hovered.voxelY : groundStackHeight;
   const hoveredProp = hovered
     ? props.find((p) => p.grid_x === hovered.x && p.grid_y === hovered.y)
     : null;
@@ -805,6 +844,68 @@ const WorldGridScene: React.FC = () => {
                   });
                 }
               }}
+              onPointerDown={(e: any) => {
+                if (activeTool === 'wall' || activeTool === 'floor' || activeTool === 'eraser') {
+                  e.stopPropagation();
+                  if (e.button !== 0) return;
+
+                  // Jika Shift+Klik pada mode wall atau menggunakan eraser, hapus 1 block yang diklik ini saja
+                  if (activeTool === 'eraser' || (activeTool === 'wall' && e.shiftKey)) {
+                    useMapStore.getState().removeVoxelBlock(vb.x, vb.y, vb.z);
+                    return;
+                  }
+
+                  if (e.point && e.face?.normal) {
+                    const normal = e.face.normal.clone().applyEuler(new THREE.Euler(0, (vb.rotation_y ?? 0) * (Math.PI / 180), 0));
+                    const cell = getVoxelCellFromFaceHit(normal, vb.x, vb.y, vb.z);
+                    if (cell) {
+                      setHovered(cell);
+                      if (dragPaintMode === 'box') {
+                        isLeftDraggingRef.current = true;
+                        isShiftDownRef.current = e.shiftKey;
+                        setBoxDragStart(cell);
+                      } else if (activeTool === 'wall') {
+                        // Tempatkan tepat 1 block tunggal di posisi face yang ditempelkan
+                        paintTile(cell.x, cell.y, false, cell.voxelY);
+                      } else {
+                        isLeftDraggingRef.current = true;
+                        isShiftDownRef.current = e.shiftKey;
+                        paintedCellsInStrokeRef.current.clear();
+                        applyBrushCellOnce(cell, e.shiftKey);
+                      }
+                    }
+                  }
+                }
+              }}
+              onPointerMove={(e: any) => {
+                if (activeTool === 'wall' || activeTool === 'floor' || activeTool === 'eraser') {
+                  e.stopPropagation();
+                  if (activeTool === 'eraser' || (activeTool === 'wall' && e.shiftKey)) {
+                    const selfCell: HoveredCell = { x: vb.x, y: vb.z, voxelY: vb.y };
+                    if (!hovered || hovered.x !== selfCell.x || hovered.y !== selfCell.y || hovered.voxelY !== selfCell.voxelY) {
+                      setHovered(selfCell);
+                    }
+                    return;
+                  }
+                  if (e.point && e.face?.normal) {
+                    const normal = e.face.normal.clone().applyEuler(new THREE.Euler(0, (vb.rotation_y ?? 0) * (Math.PI / 180), 0));
+                    const cell = getVoxelCellFromFaceHit(normal, vb.x, vb.y, vb.z);
+                    if (cell) {
+                      if (
+                        !hovered ||
+                        hovered.x !== cell.x ||
+                        hovered.y !== cell.y ||
+                        hovered.voxelY !== cell.voxelY ||
+                        hovered.faceNormal?.x !== cell.faceNormal?.x ||
+                        hovered.faceNormal?.y !== cell.faceNormal?.y ||
+                        hovered.faceNormal?.z !== cell.faceNormal?.z
+                      ) {
+                        setHovered(cell);
+                      }
+                    }
+                  }
+                }
+              }}
             />
           </group>
         );
@@ -840,10 +941,36 @@ const WorldGridScene: React.FC = () => {
             originZ + hovered.y * 2.0,
           ]}
         >
-          <mesh raycast={NOOP_RAYCAST}>
-            <boxGeometry args={[2.02, 0.12, 2.02]} />
-            <meshBasicMaterial color={highlightColor} wireframe />
-          </mesh>
+          {(() => {
+            const fn = hovered.faceNormal;
+            if (fn && (fn.x !== 0 || fn.z !== 0 || fn.y < 0)) {
+              // Orientasikan garis hover silang tepat pada sisi block tempat ditempelkan
+              const offsetX = -fn.x * 0.96;
+              const offsetZ = -fn.z * 0.96;
+              const offsetY =
+                fn.y < 0
+                  ? STONE_BLOCK_HEIGHT - 0.06
+                  : STONE_BLOCK_HEIGHT * 0.5 - 0.06;
+              const sizeX = fn.x !== 0 ? 0.12 : 2.02;
+              const sizeY = fn.y !== 0 ? 0.12 : STONE_BLOCK_HEIGHT + 0.02;
+              const sizeZ = fn.z !== 0 ? 0.12 : 2.02;
+
+              return (
+                <mesh position={[offsetX, offsetY, offsetZ]} raycast={NOOP_RAYCAST}>
+                  <boxGeometry args={[sizeX, sizeY, sizeZ]} />
+                  <meshBasicMaterial color={highlightColor} wireframe />
+                </mesh>
+              );
+            }
+
+            // Default: garis hover silang menghadap ke bawah (lantai atau sisi atas block)
+            return (
+              <mesh raycast={NOOP_RAYCAST}>
+                <boxGeometry args={[2.02, 0.12, 2.02]} />
+                <meshBasicMaterial color={highlightColor} wireframe />
+              </mesh>
+            );
+          })()}
 
           {/* 3D In-World Compass Ring, Direction Pointer & Prop Preview */}
           {(activeTool === 'prop' || !!hoveredProp || (activeTool === 'select' && selectedEntity?.type === 'prop' && selectedEntity.x === hovered.x && selectedEntity.y === hovered.y)) && !boxDragStart && (
@@ -967,7 +1094,7 @@ const WorldGridScene: React.FC = () => {
           )}
 
           {/* Ghost Preview of Modular Block when in Block Tool Mode */}
-          {activeTool === 'wall' && !boxDragStart && hoveredWallHeight < 5 && (
+          {activeTool === 'wall' && !boxDragStart && hoveredWallHeight < 20 && (
             <mesh
               position={[0, STONE_BLOCK_HEIGHT * 0.5, 0]}
               raycast={NOOP_RAYCAST}
@@ -1023,13 +1150,30 @@ const WorldGridScene: React.FC = () => {
 
       {/* 3D Props */}
       {props.map((prop) => {
-        const idx = prop.grid_y * width + prop.grid_x;
-        const stackBaseY = (collisionLayer[idx] ?? 0) * STONE_BLOCK_HEIGHT;
         const allMeta = [...useMapStore.getState().customProps, ...PROP_PREFABS];
         const propMeta = allMeta.find((p) => p.id === prop.prefab_id);
         const tileW = prop.tile_width ?? propMeta?.tileWidth ?? 1;
         const tileD = prop.tile_depth ?? propMeta?.tileDepth ?? 1;
         const scaleMult = prop.scale_multiplier ?? propMeta?.scaleMultiplier ?? 1.0;
+
+        // Hitung tinggi tumpukan block yang menyambung dari tanah dasar (level 0) tanpa celah.
+        // Jika ada block menggantung di atas (ada celah kosong di bawahnya), perulangan berhenti di celah tersebut
+        // sehingga object tetap berada di bawah dan tidak ikut melompat ke atas block yang menggantung.
+        let contiguousGroundStack = 0;
+        for (let dy = 0; dy < tileD; dy++) {
+          for (let dx = 0; dx < tileW; dx++) {
+            const tx = prop.grid_x + dx;
+            const ty = prop.grid_y + dy;
+            let h = 0;
+            while (h < 20 && voxelBlocks[`${tx}_${h}_${ty}`]) {
+              h++;
+            }
+            if (h > contiguousGroundStack) {
+              contiguousGroundStack = h;
+            }
+          }
+        }
+        const stackBaseY = contiguousGroundStack * STONE_BLOCK_HEIGHT;
 
         const isSelected =
           activeTool === 'select' &&

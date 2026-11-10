@@ -126,12 +126,12 @@ interface MapState {
   setPortalConfig: (targetMapId: string, label: string) => void;
   setEnvironmentTheme: (theme: EnvironmentTheme) => void;
 
-  paintTile: (x: number, y: number, isDragPaint?: boolean) => void;
+  paintTile: (x: number, y: number, isDragPaint?: boolean, targetVoxelY?: number) => void;
   paintRegion: (x1: number, y1: number, x2: number, y2: number, isShiftKey?: boolean) => void;
   decreaseWallAt: (x: number, y: number) => void;
   eraseAt: (x: number, y: number) => void;
   loadFromMapData: (data: MapData) => void;
-  loadPresetMap: (presetId: MapPresetId) => void;
+  loadPresetMap: (presetId: MapPresetId, customWidth?: number, customHeight?: number) => void;
   exportToMapData: () => MapData;
   resetMap: () => void;
 }
@@ -393,7 +393,164 @@ const createMedievalRiverTownPreset = (): {
   };
 };
 
-const initialPreset = createMedievalRiverTownPreset();
+const createEmptyWalledSandboxPreset = (
+  customW = 20,
+  customH = 20,
+  floorMat = 3,
+  wallMat = 5,
+  minWall = 4,
+  maxWall = 7,
+  hasWalls = true,
+  theme: EnvironmentTheme = 'medieval_day',
+  mapName = 'New Realm Canvas',
+  mapId = 'empty_walled_sandbox'
+): {
+  mapId: string;
+  mapName: string;
+  width: number;
+  height: number;
+  groundLayer: number[];
+  collisionLayer: number[];
+  wallMaterialsLayer: number[];
+  voxelBlocks: Record<string, VoxelBlockData>;
+  spawners: SpawnerData[];
+  portals: PortalData[];
+  props: PropData[];
+  environmentTheme: EnvironmentTheme;
+} => {
+  const w = Math.max(8, Math.min(64, customW));
+  const h = Math.max(8, Math.min(64, customH));
+  const ground = new Array(w * h).fill(floorMat);
+  const col = new Array(w * h).fill(0);
+  const wallMaterials = new Array(w * h).fill(0);
+  const vb: Record<string, VoxelBlockData> = {};
+
+  if (hasWalls) {
+    const range = Math.max(1, maxWall - minWall + 1);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        const isPerimeter = x === 0 || x === w - 1 || y === 0 || y === h - 1;
+
+        if (isPerimeter) {
+          const randomHeight = Math.floor(Math.random() * range) + minWall;
+          col[idx] = randomHeight;
+          wallMaterials[idx] = wallMat;
+
+          for (let lvl = 0; lvl < randomHeight; lvl++) {
+            const k = `${x}_${lvl}_${y}`;
+            vb[k] = {
+              id: k,
+              x,
+              y: lvl,
+              z: y,
+              material_id: wallMat,
+              rotation_y: 0,
+            };
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    mapId,
+    mapName,
+    width: w,
+    height: h,
+    groundLayer: ground,
+    collisionLayer: col,
+    wallMaterialsLayer: wallMaterials,
+    spawners: [],
+    portals: [],
+    props: [],
+    voxelBlocks: vb,
+    environmentTheme: theme,
+  };
+};
+
+const createRiverGorgePreset = (
+  customW = 20,
+  customH = 20
+): {
+  mapId: string;
+  mapName: string;
+  width: number;
+  height: number;
+  groundLayer: number[];
+  collisionLayer: number[];
+  wallMaterialsLayer: number[];
+  voxelBlocks: Record<string, VoxelBlockData>;
+  spawners: SpawnerData[];
+  portals: PortalData[];
+  props: PropData[];
+  environmentTheme: EnvironmentTheme;
+} => {
+  const w = Math.max(8, Math.min(64, customW));
+  const h = Math.max(8, Math.min(64, customH));
+  const ground = new Array(w * h).fill(6); // Lush Grass
+  const col = new Array(w * h).fill(0);
+  const wallMaterials = new Array(w * h).fill(0);
+  const vb: Record<string, VoxelBlockData> = {};
+
+  const midX = Math.floor(w / 2);
+
+  for (let y = 0; y < h; y++) {
+    // Flowing River center curve
+    const riverOffset = Math.round(Math.sin(y * 0.4) * 1.2);
+    const riverX1 = midX + riverOffset;
+    const riverX2 = riverX1 + 1;
+
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const isPerimeter = x === 0 || x === w - 1 || y === 0 || y === h - 1;
+
+      // River Water in center
+      if (!isPerimeter && (x === riverX1 || x === riverX2)) {
+        ground[idx] = 7; // River Water
+      }
+
+      if (isPerimeter) {
+        // Leave opening for river mouth North & South
+        const isRiverPassage = (y === 0 || y === h - 1) && (x === riverX1 || x === riverX2);
+        if (!isRiverPassage) {
+          const randomHeight = Math.floor(Math.random() * 4) + 4; // 4-7
+          col[idx] = randomHeight;
+          wallMaterials[idx] = 5; // Mossy Stone
+
+          for (let lvl = 0; lvl < randomHeight; lvl++) {
+            const k = `${x}_${lvl}_${y}`;
+            vb[k] = {
+              id: k,
+              x,
+              y: lvl,
+              z: y,
+              material_id: 5,
+              rotation_y: 0,
+            };
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    mapId: 'river_gorge',
+    mapName: 'River Gorge',
+    width: w,
+    height: h,
+    groundLayer: ground,
+    collisionLayer: col,
+    wallMaterialsLayer: wallMaterials,
+    spawners: [],
+    portals: [],
+    props: [],
+    voxelBlocks: vb,
+    environmentTheme: 'medieval_day',
+  };
+};
+
+const initialPreset = createEmptyWalledSandboxPreset();
 
 export const useMapStore = create<MapState>((set, get) => ({
   mapId: initialPreset.mapId,
@@ -764,7 +921,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   setPortalConfig: (portalTargetMapId, portalLabel) => set({ portalTargetMapId, portalLabel }),
   setEnvironmentTheme: (environmentTheme) => set({ environmentTheme }),
 
-  paintTile: (x, y) => {
+  paintTile: (x, y, _isDragPaint, targetVoxelY) => {
     const {
       width,
       height,
@@ -812,37 +969,64 @@ export const useMapStore = create<MapState>((set, get) => ({
         voxelBlocks: nextVoxelBlocks,
       });
     } else if (activeTool === 'wall') {
+      const { voxelBlocks } = get();
+      const nextVoxelBlocks = { ...voxelBlocks };
       const newCol = [...collisionLayer];
       const newWallMaterials = [...wallMaterialsLayer];
       const currentHeight = newCol[idx] ?? 0;
-      let targetHeight = 1;
 
-      if (wallStackMode === 'increment') {
-        // Stack block higher (+1 per cell per stroke, capped at 20)
-        targetHeight = Math.min(20, currentHeight + 1);
-        newCol[idx] = targetHeight;
-      } else {
-        targetHeight = Math.min(20, Math.max(1, selectedWallHeight));
-        newCol[idx] = targetHeight;
-      }
-      newWallMaterials[idx] = selectedWallType;
-
-      // Sinkronkan ke voxelBlocks
-      const { voxelBlocks } = get();
-      const nextVoxelBlocks = { ...voxelBlocks };
-      for (let lvl = 0; lvl < targetHeight; lvl++) {
-        const k = `${x}_${lvl}_${y}`;
-        if (!nextVoxelBlocks[k]) {
+      if (targetVoxelY !== undefined) {
+        // Tempatkan HANYA 1 block tunggal tepat pada level ketinggian (targetVoxelY) yang ditempelkan
+        const clampedY = Math.max(0, Math.min(19, targetVoxelY));
+        const k = `${x}_${clampedY}_${y}`;
+        nextVoxelBlocks[k] = {
+          id: k,
+          x,
+          y: clampedY,
+          z: y,
+          material_id: selectedWallType,
+          rotation_y: nextVoxelBlocks[k]?.rotation_y ?? 0,
+        };
+        newCol[idx] = Math.min(20, Math.max(currentHeight, clampedY + 1));
+        newWallMaterials[idx] = selectedWallType;
+      } else if (wallStackMode === 'increment') {
+        // Cari slot kosong terendah dari tanah (lvl = 0) agar ruang kosong di bawah block menggantung bisa diisi
+        let lowestEmptyY = 0;
+        while (lowestEmptyY < 20 && nextVoxelBlocks[`${x}_${lowestEmptyY}_${y}`]) {
+          lowestEmptyY++;
+        }
+        if (lowestEmptyY < 20) {
+          const k = `${x}_${lowestEmptyY}_${y}`;
           nextVoxelBlocks[k] = {
             id: k,
             x,
-            y: lvl,
+            y: lowestEmptyY,
             z: y,
             material_id: selectedWallType,
             rotation_y: 0,
           };
-        } else {
-          nextVoxelBlocks[k].material_id = selectedWallType;
+          newCol[idx] = Math.min(20, Math.max(currentHeight, lowestEmptyY + 1));
+          newWallMaterials[idx] = selectedWallType;
+        }
+      } else {
+        const targetHeight = Math.min(20, Math.max(1, selectedWallHeight));
+        newCol[idx] = Math.min(20, Math.max(currentHeight, targetHeight));
+        newWallMaterials[idx] = selectedWallType;
+
+        for (let lvl = 0; lvl < targetHeight; lvl++) {
+          const k = `${x}_${lvl}_${y}`;
+          if (!nextVoxelBlocks[k]) {
+            nextVoxelBlocks[k] = {
+              id: k,
+              x,
+              y: lvl,
+              z: y,
+              material_id: selectedWallType,
+              rotation_y: 0,
+            };
+          } else {
+            nextVoxelBlocks[k].material_id = selectedWallType;
+          }
         }
       }
 
@@ -903,6 +1087,13 @@ export const useMapStore = create<MapState>((set, get) => ({
         return !overlaps;
       });
 
+      const { voxelBlocks } = get();
+      let groundStackZ = 0;
+      while (groundStackZ < 20 && voxelBlocks[`${x}_${groundStackZ}_${y}`]) {
+        groundStackZ++;
+      }
+      const propGridZ = targetVoxelY !== undefined ? targetVoxelY : groundStackZ;
+
       set({
         props: [
           ...filtered,
@@ -911,6 +1102,7 @@ export const useMapStore = create<MapState>((set, get) => ({
             prefab_id: selectedPropPrefab,
             grid_x: x,
             grid_y: y,
+            grid_z: propGridZ,
             rotation_deg: selectedPropRotation,
             tile_width: propW,
             tile_depth: propD,
@@ -1100,23 +1292,29 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   decreaseWallAt: (x, y) => {
-    const { width, height, collisionLayer, wallMaterialsLayer } = get();
+    const { width, height, collisionLayer, wallMaterialsLayer, voxelBlocks } = get();
     if (x < 0 || x >= width || y < 0 || y >= height) return;
     const idx = y * width + x;
     const current = collisionLayer[idx] ?? 0;
     if (current > 0) {
       const newCol = [...collisionLayer];
       const newWallMaterials = [...wallMaterialsLayer];
+      const nextVoxelBlocks = { ...voxelBlocks };
+      delete nextVoxelBlocks[`${x}_${current - 1}_${y}`];
       newCol[idx] = current - 1;
       if (newCol[idx] === 0) {
         newWallMaterials[idx] = 0;
       }
-      set({ collisionLayer: newCol, wallMaterialsLayer: newWallMaterials });
+      set({
+        collisionLayer: newCol,
+        wallMaterialsLayer: newWallMaterials,
+        voxelBlocks: nextVoxelBlocks,
+      });
     }
   },
 
   eraseAt: (x, y) => {
-    const { width, height, collisionLayer, wallMaterialsLayer, spawners, portals, props, customProps } = get();
+    const { width, height, collisionLayer, wallMaterialsLayer, voxelBlocks, spawners, portals, props, customProps } = get();
     if (x < 0 || x >= width || y < 0 || y >= height) return;
     const idx = y * width + x;
 
@@ -1125,11 +1323,17 @@ export const useMapStore = create<MapState>((set, get) => ({
     newCol[idx] = 0;
     newWallMaterials[idx] = 0;
 
+    const nextVoxelBlocks = { ...voxelBlocks };
+    for (let checkY = 0; checkY < 20; checkY++) {
+      delete nextVoxelBlocks[`${x}_${checkY}_${y}`];
+    }
+
     const allPropsMeta = [...customProps, ...PROP_PREFABS];
 
     set({
       collisionLayer: newCol,
       wallMaterialsLayer: newWallMaterials,
+      voxelBlocks: nextVoxelBlocks,
       spawners: spawners.filter((s) => !(s.x === x && s.y === y)),
       portals: portals.filter((p) => !(Math.round(p.grid_x) === x && Math.round(p.grid_y) === y)),
       props: props.filter((p) => {
@@ -1142,9 +1346,108 @@ export const useMapStore = create<MapState>((set, get) => ({
     });
   },
 
-  loadPresetMap: (presetId) => {
-    const preset =
-      presetId === 'medieval_town' ? createMedievalRiverTownPreset() : createCatacombsPreset();
+  loadPresetMap: (presetId, customWidth, customHeight) => {
+    const currentW = customWidth ?? get().width;
+    const currentH = customHeight ?? get().height;
+
+    let preset: {
+      mapId: string;
+      mapName: string;
+      width: number;
+      height: number;
+      groundLayer: number[];
+      collisionLayer: number[];
+      wallMaterialsLayer: number[];
+      voxelBlocks: Record<string, VoxelBlockData>;
+      spawners: SpawnerData[];
+      portals: PortalData[];
+      props: PropData[];
+      environmentTheme: EnvironmentTheme;
+    };
+
+    switch (presetId) {
+      case 'walled_dirt':
+        preset = createEmptyWalledSandboxPreset(
+          currentW,
+          currentH,
+          3, // Dirt
+          5, // Mossy Stone
+          4, // Min wall
+          7, // Max wall
+          true,
+          'medieval_day',
+          'Walled Dirt Basin',
+          'walled_dirt_basin'
+        );
+        break;
+      case 'walled_meadow':
+        preset = createEmptyWalledSandboxPreset(
+          currentW,
+          currentH,
+          6, // Grass
+          5, // Mossy Stone
+          3, // Min wall
+          6, // Max wall
+          true,
+          'medieval_day',
+          'Walled Green Meadow',
+          'walled_green_meadow'
+        );
+        break;
+      case 'walled_arena':
+        preset = createEmptyWalledSandboxPreset(
+          currentW,
+          currentH,
+          2, // Cobblestone
+          1, // Fortress Stone
+          4, // Min wall
+          6, // Max wall
+          true,
+          'gothic_night',
+          'Walled Stone Arena',
+          'walled_stone_arena'
+        );
+        break;
+      case 'open_plain':
+        preset = createEmptyWalledSandboxPreset(
+          currentW,
+          currentH,
+          6, // Grass
+          0,
+          0,
+          0,
+          false,
+          'medieval_day',
+          'Flat Open Plain',
+          'flat_open_plain'
+        );
+        break;
+      case 'river_gorge':
+        preset = createRiverGorgePreset(currentW, currentH);
+        break;
+      case 'mountain_canyon':
+        preset = createEmptyWalledSandboxPreset(
+          currentW,
+          currentH,
+          3, // Dirt
+          1, // Fortress Stone
+          5, // Min wall
+          8, // Max wall
+          true,
+          'medieval_day',
+          'Mountain Canyon',
+          'mountain_canyon'
+        );
+        break;
+      case 'catacombs':
+        preset = createCatacombsPreset();
+        break;
+      case 'medieval_town':
+      default:
+        preset = createMedievalRiverTownPreset();
+        break;
+    }
+
     set({
       mapId: preset.mapId,
       mapName: preset.mapName,
@@ -1153,10 +1456,12 @@ export const useMapStore = create<MapState>((set, get) => ({
       groundLayer: preset.groundLayer,
       collisionLayer: preset.collisionLayer,
       wallMaterialsLayer: preset.wallMaterialsLayer,
+      voxelBlocks: preset.voxelBlocks,
       spawners: preset.spawners,
       portals: preset.portals,
       props: preset.props,
       environmentTheme: preset.environmentTheme,
+      selectedEntity: null,
     });
   },
 
@@ -1282,7 +1587,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   resetMap: () => {
-    const preset = createMedievalRiverTownPreset();
+    const preset = createEmptyWalledSandboxPreset();
     set({
       mapId: preset.mapId,
       mapName: preset.mapName,
@@ -1294,6 +1599,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       spawners: preset.spawners,
       portals: preset.portals,
       props: preset.props,
+      voxelBlocks: preset.voxelBlocks,
       environmentTheme: preset.environmentTheme,
     });
   },

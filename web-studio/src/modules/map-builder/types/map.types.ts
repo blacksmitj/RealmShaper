@@ -6,7 +6,101 @@ export type WallStackMode = 'increment' | 'fixed';
 
 export type EnvironmentTheme = 'medieval_day' | 'gothic_night';
 
-export type MapPresetId = 'medieval_town' | 'catacombs';
+export type MapPresetId =
+  | 'medieval_town'
+  | 'catacombs'
+  | 'walled_dirt'
+  | 'walled_meadow'
+  | 'walled_arena'
+  | 'open_plain'
+  | 'river_gorge'
+  | 'mountain_canyon';
+
+export interface TerrainTemplateMeta {
+  id: MapPresetId;
+  name: string;
+  category: 'walled' | 'open' | 'natural';
+  description: string;
+  floorMaterialId: number;
+  wallMaterialId: number;
+  hasWalls: boolean;
+  minWallHeight?: number;
+  maxWallHeight?: number;
+  theme: EnvironmentTheme;
+}
+
+export const TERRAIN_TEMPLATES: readonly TerrainTemplateMeta[] = [
+  {
+    id: 'walled_dirt',
+    name: 'Walled Dirt Basin',
+    category: 'walled',
+    description: 'Tanah lapang bersih dengan benteng tebing acak (tinggi 4-7) di sekelilingnya.',
+    floorMaterialId: 3, // Dirt Pathway
+    wallMaterialId: 5, // Mossy Ancient Ruins
+    hasWalls: true,
+    minWallHeight: 4,
+    maxWallHeight: 7,
+    theme: 'medieval_day',
+  },
+  {
+    id: 'walled_meadow',
+    name: 'Walled Green Meadow',
+    category: 'walled',
+    description: 'Padang rumput hijau subur dikelilingi pagar balok batu berlumut acak (tinggi 3-6).',
+    floorMaterialId: 6, // Lush Grass Meadow
+    wallMaterialId: 5, // Mossy Ancient Ruins
+    hasWalls: true,
+    minWallHeight: 3,
+    maxWallHeight: 6,
+    theme: 'medieval_day',
+  },
+  {
+    id: 'walled_arena',
+    name: 'Walled Stone Arena',
+    category: 'walled',
+    description: 'Ubin batu kastil gelap dengan dinding batu benteng kokoh bertingkat (tinggi 4-6).',
+    floorMaterialId: 2, // Medieval Cobblestone
+    wallMaterialId: 1, // Fortress Border Stone
+    hasWalls: true,
+    minWallHeight: 4,
+    maxWallHeight: 6,
+    theme: 'gothic_night',
+  },
+  {
+    id: 'open_plain',
+    name: 'Flat Open Plain',
+    category: 'open',
+    description: 'Dataran rumput luas tanpa dinding pembatas pinggir sama sekali.',
+    floorMaterialId: 6, // Lush Grass
+    wallMaterialId: 0,
+    hasWalls: false,
+    theme: 'medieval_day',
+  },
+  {
+    id: 'river_gorge',
+    name: 'River Gorge (Lembah Sungai)',
+    category: 'natural',
+    description: 'Lembah rumput hijau bertebing batu dengan aliran sungai air berliku di tengahnya.',
+    floorMaterialId: 6, // Grass
+    wallMaterialId: 5, // Mossy Stone
+    hasWalls: true,
+    minWallHeight: 4,
+    maxWallHeight: 7,
+    theme: 'medieval_day',
+  },
+  {
+    id: 'mountain_canyon',
+    name: 'Mountain Canyon (Ngarai Tebing)',
+    category: 'natural',
+    description: 'Jalur ngarai tanah berbatu dengan dinding tebing batu tinggi masif (tinggi 5-8).',
+    floorMaterialId: 3, // Dirt
+    wallMaterialId: 1, // Fortress Border Stone
+    hasWalls: true,
+    minWallHeight: 5,
+    maxWallHeight: 8,
+    theme: 'medieval_day',
+  },
+] as const;
 
 export interface FloorMaterialMeta {
   id: number;

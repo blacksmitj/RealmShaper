@@ -163,9 +163,9 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
         variant="secondary"
         size="sm"
         onClick={() => setIsOpen(true)}
-        className="absolute bottom-5 right-5 z-30 shadow-2xl bg-slate-900/90 border border-cyan-500/40 text-cyan-300 hover:bg-slate-800 gap-2 backdrop-blur-md"
+        className="absolute bottom-5 right-5 z-30 shadow-2xl bg-card/90 border border-border text-foreground hover:bg-muted gap-2 backdrop-blur-md"
       >
-        <Box className="w-4 h-4 text-cyan-400" />
+        <Box className="w-4 h-4 text-primary" />
         <span className="text-xs font-semibold">Open Asset Palette</span>
       </Button>
     );
@@ -174,23 +174,23 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
   return (
     <div
       style={{ left: `${position.x}px`, top: `${position.y}px` }}
-      className="absolute z-30 w-84 bg-slate-950/95 border border-slate-800/90 rounded-xl shadow-2xl shadow-black/80 backdrop-blur-xl flex flex-col overflow-hidden select-none transition-[height] duration-150"
+      className="absolute z-30 w-84 bg-card/95 border border-border rounded-xl shadow-2xl shadow-black/80 backdrop-blur-xl flex flex-col overflow-hidden select-none transition-[height] duration-150"
     >
       {/* Draggable Window Header */}
       <div
         onPointerDown={handlePointerDownHeader}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="px-3.5 py-2.5 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between cursor-grab active:cursor-grabbing"
+        className="px-3.5 py-2.5 bg-muted/60 border-b border-border flex items-center justify-between cursor-grab active:cursor-grabbing"
       >
         <div className="flex items-center gap-2 pointer-events-none">
-          <GripHorizontal className="w-4 h-4 text-slate-500" />
-          <span className="text-xs font-semibold tracking-wide text-slate-200">
+          <GripHorizontal className="w-4 h-4 text-muted-foreground" />
+          <span className="text-xs font-semibold tracking-wide text-foreground">
             Asset Palette
           </span>
           <Badge
             variant="outline"
-            className="text-[9px] h-4 px-1.5 border-cyan-500/40 text-cyan-400 font-mono"
+            className="text-[9px] h-4 px-1.5 border-border text-muted-foreground font-mono"
           >
             {activeTab === 'objects' ? `${filteredProps.length} Props` : `${filteredFloors.length} Floors`}
           </Badge>
@@ -201,7 +201,7 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
             variant="ghost"
             size="icon"
             onClick={() => setIsMinimized(!isMinimized)}
-            className="w-6 h-6 text-slate-400 hover:text-white hover:bg-slate-800"
+            className="w-6 h-6 text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             {isMinimized ? <Maximize2 className="w-3 h-3" /> : <Minimize2 className="w-3 h-3" />}
           </Button>
@@ -209,7 +209,7 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
             variant="ghost"
             size="icon"
             onClick={() => setIsOpen(false)}
-            className="w-6 h-6 text-slate-400 hover:text-rose-400 hover:bg-rose-950/40"
+            className="w-6 h-6 text-muted-foreground hover:text-destructive hover:bg-muted"
           >
             <X className="w-3.5 h-3.5" />
           </Button>
@@ -217,9 +217,12 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
       </div>
 
       {!isMinimized && (
-        <div className="flex flex-col flex-1 max-h-[500px]">
+        <div
+          onWheel={(e) => e.stopPropagation()}
+          className="flex flex-col h-[460px] max-h-[calc(100vh-120px)] min-h-0"
+        >
           {/* Tab Selector (Objects vs Materials) */}
-          <div className="p-2 border-b border-slate-800/60 flex items-center gap-1.5 bg-slate-900/40">
+          <div className="p-2 border-b border-border flex items-center gap-1.5 bg-muted/30">
             <Button
               variant={activeTab === 'objects' ? 'secondary' : 'ghost'}
               size="sm"
@@ -230,8 +233,8 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
               }}
               className={`flex-1 h-7 text-xs gap-1.5 ${
                 activeTab === 'objects'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-medium'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-primary/10 text-primary border border-primary/30 font-medium'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Box className="w-3.5 h-3.5" />
@@ -249,8 +252,8 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
               }}
               className={`flex-1 h-7 text-xs gap-1.5 ${
                 activeTab === 'materials'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-medium'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-primary/10 text-primary border border-primary/30 font-medium'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -259,15 +262,15 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
           </div>
 
           {/* Search Bar & Action Upload */}
-          <div className="p-2.5 space-y-2 border-b border-slate-800/60">
+          <div className="p-2.5 space-y-2 border-b border-border">
             <div className="flex items-center gap-1.5">
               <div className="relative flex-1">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-500" />
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-muted-foreground" />
                 <Input
                   placeholder={`Search ${activeTab === 'objects' ? '3D props...' : 'floor tiles...'}`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-7.5 pl-8 text-xs bg-slate-900/90 border-slate-800 text-slate-200 placeholder:text-slate-500"
+                  className="h-7.5 pl-8 text-xs bg-muted/40 border-input text-foreground placeholder:text-muted-foreground"
                 />
               </div>
 
@@ -275,7 +278,7 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={activeTab === 'objects' ? onOpenUploadProp : onOpenUploadFloor}
-                className="h-7.5 px-2 text-xs gap-1 bg-cyan-950/40 border-cyan-500/30 text-cyan-300 hover:bg-cyan-900/60 shrink-0"
+                className="h-7.5 px-2 text-xs gap-1 bg-primary/10 border-primary/20 text-primary hover:bg-primary/20 shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Upload</span>
@@ -295,8 +298,8 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                   onClick={() => setCategoryFilter(cat)}
                   className={`h-5.5 px-2 text-[10px] capitalize shrink-0 ${
                     categoryFilter === cat
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-primary/15 text-primary border border-primary/30 font-medium'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {cat}
@@ -306,9 +309,9 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
           </div>
 
           {/* Grid / List Gallery with Real Thumbnails */}
-          <ScrollArea className="flex-1 p-2.5 h-80">
+          <ScrollArea className="flex-1 min-h-0 w-full">
             {activeTab === 'objects' ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 p-2.5 pr-3.5">
                 {filteredProps.map((prop) => {
                   const isSelected = selectedPropPrefab === prop.id && activeTool === 'prop';
                   return (
@@ -320,12 +323,12 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                       }}
                       className={`group relative flex flex-col p-2 rounded-lg border transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-slate-800/95 border-cyan-400 shadow-md shadow-cyan-950 ring-1 ring-cyan-400/40'
-                          : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-900 hover:border-slate-700'
+                          ? 'bg-accent/80 border-primary shadow-md shadow-primary/20 ring-1 ring-primary/40'
+                          : 'bg-muted/30 border-border hover:bg-muted/70 hover:border-border'
                       }`}
                     >
                       {/* Real Thumbnail Preview Container */}
-                      <div className="w-full aspect-square rounded-md overflow-hidden bg-slate-950 border border-slate-800/90 flex items-center justify-center relative mb-1.5">
+                      <div className="w-full aspect-square rounded-md overflow-hidden bg-background border border-border flex items-center justify-center relative mb-1.5">
                         {prop.thumbnailUrl ? (
                           <img
                             src={prop.thumbnailUrl}
@@ -333,21 +336,21 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                             className="w-full h-full object-cover transition-transform group-hover:scale-105"
                           />
                         ) : (
-                          <Box className="w-8 h-8 text-cyan-400/80" />
+                          <Box className="w-8 h-8 text-primary" />
                         )}
 
                         {prop.isCustom && (
-                          <Badge className="absolute top-1 left-1 h-3.5 px-1 text-[8px] bg-indigo-500/80 text-white font-medium border-0">
+                          <Badge className="absolute top-1 left-1 h-3.5 px-1 text-[8px] bg-primary text-primary-foreground font-medium border-0">
                             Custom
                           </Badge>
                         )}
                       </div>
 
                       <div className="min-w-0">
-                        <div className="text-[11px] font-medium text-slate-200 truncate">
+                        <div className="text-[11px] font-medium text-foreground truncate">
                           {prop.name}
                         </div>
-                        <div className="text-[9px] text-slate-400 truncate capitalize">
+                        <div className="text-[9px] text-muted-foreground truncate capitalize">
                           {prop.category}
                         </div>
                       </div>
@@ -364,7 +367,7 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                               name: prop.name,
                             });
                           }}
-                          className="absolute top-1.5 right-1.5 w-5 h-5 text-slate-400 hover:text-red-400 hover:bg-red-950/60 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/70 rounded"
+                          className="absolute top-1.5 right-1.5 w-5 h-5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 rounded"
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -374,11 +377,11 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                 })}
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 p-2.5 pr-3.5">
                 {activeTool === 'wall' && (
-                  <div className="px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-300 flex items-center justify-between">
+                  <div className="px-2 py-1 rounded bg-warning/10 border border-warning/30 text-[10px] text-warning flex items-center justify-between">
                     <span className="font-medium">Active for: Modular Blocks</span>
-                    <span className="font-mono text-amber-200 font-bold">ID: {selectedWallType}</span>
+                    <span className="font-mono text-warning font-bold">ID: {selectedWallType}</span>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2">
@@ -401,13 +404,13 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                         className={`group relative flex flex-col p-2 rounded-lg border transition-all cursor-pointer ${
                           isSelected
                             ? activeTool === 'wall'
-                              ? 'bg-amber-950/40 border-amber-400 shadow-md shadow-amber-950 ring-1 ring-amber-400/50'
-                              : 'bg-slate-800/95 border-cyan-400 shadow-md shadow-cyan-950 ring-1 ring-cyan-400/40'
-                            : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-900 hover:border-slate-700'
+                              ? 'bg-warning/15 border-warning shadow-md shadow-warning/20 ring-1 ring-warning/50'
+                              : 'bg-accent/80 border-primary shadow-md shadow-primary/20 ring-1 ring-primary/40'
+                            : 'bg-muted/30 border-border hover:bg-muted/70 hover:border-border'
                         }`}
                       >
                       {/* Real Tile Thumbnail Preview Container */}
-                      <div className="w-full aspect-square rounded-md overflow-hidden bg-slate-950 border border-slate-800/90 flex items-center justify-center relative mb-1.5">
+                      <div className="w-full aspect-square rounded-md overflow-hidden bg-background border border-border flex items-center justify-center relative mb-1.5">
                         {floor.thumbnailUrl ? (
                           <img
                             src={floor.thumbnailUrl}
@@ -424,17 +427,17 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                         )}
 
                         {floor.isCustom && (
-                          <Badge className="absolute top-1 left-1 h-3.5 px-1 text-[8px] bg-indigo-500/80 text-white font-medium border-0">
+                          <Badge className="absolute top-1 left-1 h-3.5 px-1 text-[8px] bg-primary text-primary-foreground font-medium border-0">
                             Custom
                           </Badge>
                         )}
                       </div>
 
                       <div className="min-w-0">
-                        <div className="text-[11px] font-medium text-slate-200 truncate">
+                        <div className="text-[11px] font-medium text-foreground truncate">
                           {floor.name}
                         </div>
-                        <div className="text-[9px] text-slate-400 truncate capitalize">
+                        <div className="text-[9px] text-muted-foreground truncate capitalize">
                           {floor.category}
                         </div>
                       </div>
@@ -459,7 +462,7 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                                 }
                               }
                             }}
-                            className="w-5 h-5 text-slate-300 hover:text-cyan-300 hover:bg-cyan-950/60 bg-slate-950/70 rounded"
+                            className="w-5 h-5 text-muted-foreground hover:text-primary hover:bg-primary/10 bg-background/80 rounded"
                           >
                             <SlidersHorizontal className="w-3 h-3" />
                           </Button>
@@ -474,7 +477,7 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                                 name: floor.name,
                               });
                             }}
-                            className="w-5 h-5 text-slate-400 hover:text-red-400 hover:bg-red-950/60 bg-slate-950/70 rounded"
+                            className="w-5 h-5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 bg-background/80 rounded"
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -492,13 +495,13 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
 
       {/* Edit Floor Material Settings Dialog */}
       <Dialog open={!!editFloorMeta} onOpenChange={(open) => !open && setEditFloorMeta(null)}>
-        <DialogContent className="bg-slate-900 border-slate-800 text-slate-200 sm:max-w-md">
+        <DialogContent className="bg-card border-border text-card-foreground sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm text-cyan-300 flex items-center gap-2">
-              <SlidersHorizontal className="w-4 h-4" />
+            <DialogTitle className="text-sm text-foreground flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4 text-primary" />
               Setting Texture Zoom
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-400">
+            <DialogDescription className="text-xs text-muted-foreground">
               Atur kerapatan repetisi ubin (tiling) untuk material <strong>"{editFloorMeta?.name}"</strong>.
             </DialogDescription>
           </DialogHeader>
@@ -508,8 +511,8 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
             {editFloorMeta && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-cyan-300 font-medium">3D Tile Live Preview</Label>
-                  <Badge variant="outline" className="border-cyan-500 text-cyan-300 text-[10px] font-mono">
+                  <Label className="text-xs text-foreground font-medium">3D Tile Live Preview</Label>
+                  <Badge variant="outline" className="border-border text-foreground text-[10px] font-mono">
                     Scale: {editScale.toFixed(2)}x
                   </Badge>
                 </div>
@@ -518,15 +521,15 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                   repeatScale={editScale}
                   className="w-full h-44"
                 />
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-muted-foreground">
                   Preview 3D interaktif: kerapatan tekstur ubin dan kanvas peta berubah seketika saat slider digeser.
                 </p>
               </div>
             )}
 
             <div className="flex justify-between items-center">
-              <Label className="text-xs text-slate-300">Tiling Scale Slider</Label>
-              <Badge variant="outline" className="border-cyan-500 text-cyan-300 text-[10px] font-mono">
+              <Label className="text-xs text-foreground">Tiling Scale Slider</Label>
+              <Badge variant="outline" className="border-border text-foreground text-[10px] font-mono">
                 {editScale.toFixed(2)}x {editScale > 1 ? '(Zoom Out)' : editScale < 1 ? '(Zoom In)' : '(Normal 1:1)'}
               </Badge>
             </div>
@@ -548,7 +551,7 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
               }}
               className="py-1 cursor-pointer"
             />
-            <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+            <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
               <span>0.1x (Zoom In Max)</span>
               <span>1.0x (Normal)</span>
               <span>4.0x (Zoom Out Max)</span>
@@ -565,7 +568,7 @@ export const FloatingPaletteWindow: React.FC<FloatingPaletteWindowProps> = ({
                 }
                 setEditFloorMeta(null);
               }}
-              className="w-full text-xs bg-cyan-600 hover:bg-cyan-500 text-white"
+              className="w-full text-xs bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Simpan Pengaturan
             </Button>

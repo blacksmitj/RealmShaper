@@ -104,7 +104,7 @@ export const TexturePreviewViewport: React.FC<TexturePreviewViewportProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative rounded-lg overflow-hidden bg-slate-950 border border-cyan-500/30 flex items-center justify-center ${className}`}
+      className={`relative rounded-lg overflow-hidden bg-background border border-border flex items-center justify-center ${className}`}
     />
   );
 };

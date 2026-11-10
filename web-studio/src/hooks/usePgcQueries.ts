@@ -4,6 +4,9 @@ import {
   uploadPgcAsset,
   fetchCreatorAssets,
   fetchAssetDownloadUrl,
+  fetchMapDrafts,
+  saveMapDraft,
+  deleteMapDraft,
   type PgcKind,
   type UploadAssetParams,
 } from '../lib/pgcService';
@@ -12,6 +15,8 @@ export const PGC_QUERY_KEYS = {
   health: ['server', 'health'] as const,
   assets: (kind?: PgcKind) => ['pgc', 'assets', kind ?? 'all'] as const,
   assetDownload: (assetId: string) => ['pgc', 'download', assetId] as const,
+  mapDrafts: ['map', 'drafts'] as const,
+  mapDraftDetail: (id: string) => ['map', 'draft', id] as const,
 };
 
 /**
@@ -62,6 +67,53 @@ export function useAssetDownload(assetId: string | null) {
     queryKey: PGC_QUERY_KEYS.assetDownload(assetId ?? ''),
     queryFn: () => (assetId ? fetchAssetDownloadUrl(assetId) : null),
     enabled: !!assetId,
+  });
+}
+
+/**
+ * Hook query untuk mengambil daftar draft map milik kreator
+ */
+export function useMapDrafts() {
+  return useQuery({
+    queryKey: PGC_QUERY_KEYS.mapDrafts,
+    queryFn: fetchMapDrafts,
+    staleTime: 5000,
+  });
+}
+
+/**
+ * Hook mutation untuk menyimpan atau memperbarui draft map
+ */
+export function useSaveMapDraft() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      mapId,
+      mapName,
+      mapData,
+    }: {
+      mapId: string;
+      mapName: string;
+      mapData: any;
+    }) => saveMapDraft(mapId, mapName, mapData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PGC_QUERY_KEYS.mapDrafts });
+    },
+  });
+}
+
+/**
+ * Hook mutation untuk menghapus draft map
+ */
+export function useDeleteMapDraft() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteMapDraft(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PGC_QUERY_KEYS.mapDrafts });
+    },
   });
 }
 

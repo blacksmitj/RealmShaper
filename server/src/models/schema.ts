@@ -133,7 +133,28 @@ export const characterEquipment = pgTable(
   (t) => [primaryKey({ columns: [t.characterId, t.slot] })]
 );
 
+// ---------- Map Drafts (Creator Web Studio) ----------
+export const mapDrafts = pgTable(
+  'map_drafts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerAccountId: uuid('owner_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    mapId: text('map_id').notNull(),
+    mapName: text('map_name').notNull(),
+    mapData: jsonb('map_data').$type<Record<string, any>>().notNull(),
+    ...timestamps
+  },
+  (t) => [
+    index('map_drafts_owner_idx').on(t.ownerAccountId),
+    uniqueIndex('map_drafts_owner_map_id_uq').on(t.ownerAccountId, t.mapId)
+  ]
+);
+
 export type AccountRow = typeof accounts.$inferSelect;
 export type CharacterRow = typeof characters.$inferSelect;
 export type PgcAssetRow = typeof pgcAssets.$inferSelect;
+export type MapDraftRow = typeof mapDrafts.$inferSelect;
+export type NewMapDraftRow = typeof mapDrafts.$inferInsert;
 

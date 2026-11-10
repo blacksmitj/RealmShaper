@@ -1,152 +1,61 @@
-import { useState } from 'react';
-import { MapCanvas } from './modules/map-builder/components/MapCanvas';
-import { MapToolbar } from './modules/map-builder/components/MapToolbar';
-import { StatBalancerView } from './modules/stat-alloc/components/StatBalancerView';
-import { TextureCanvas } from './modules/tex-painter/components/TextureCanvas';
-import { TextureToolbar } from './modules/tex-painter/components/TextureToolbar';
-import { QuestGraphCanvas } from './modules/quest-editor/components/QuestGraphCanvas';
-import { QuestToolbar } from './modules/quest-editor/components/QuestToolbar';
-import { Map, Activity, Palette, GitBranch, Database, HardDrive, Wifi, WifiOff } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useServerHealth } from './hooks/usePgcQueries';
+import { useState, useEffect } from 'react';
+import { DashboardLayout } from './components/dashboard/DashboardLayout';
+import { EditorLayout, type EditorMode } from './components/editor/EditorLayout';
+import type { DashboardTab } from './components/layout/StudioSidebar';
 
 export function App() {
-  const [activeModule, setActiveModule] = useState<'map' | 'stats' | 'texture' | 'quest'>('map');
-  const { data: serverStatus = { online: false, db: false, storage: false } } = useServerHealth();
+  const [currentTab, setCurrentTab] = useState<DashboardTab>('overview');
+  const [editorMode, setEditorMode] = useState<EditorMode | null>(null);
+
+  // Sinkronisasi sederhana dengan Hash URL browser (memudahkan bookmark & refresh)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash.startsWith('/editor/')) {
+        const mode = hash.split('/')[2] as EditorMode;
+        if (['map', 'stats', 'quest'].includes(mode)) {
+          setEditorMode(mode);
+          return;
+        }
+      }
+      setEditorMode(null);
+      if (['overview', 'maps', 'monsters', 'quests', 'equipment'].includes(hash)) {
+        setCurrentTab(hash as DashboardTab);
+      }
+    };
+
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleSelectTab = (tab: DashboardTab) => {
+    setCurrentTab(tab);
+    window.location.hash = tab;
+  };
+
+  const handleOpenEditor = (mode: EditorMode) => {
+    setEditorMode(mode);
+    window.location.hash = `/editor/${mode}`;
+  };
+
+  const handleExitEditor = () => {
+    setEditorMode(null);
+    window.location.hash = currentTab;
+  };
+
+  if (editorMode) {
+    return <EditorLayout mode={editorMode} onExit={handleExitEditor} />;
+  }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 font-sans">
-      {/* Top Studio Navigation Bar */}
-      <header className="h-11 border-b border-slate-800 bg-slate-950 px-4 flex items-center justify-between z-20">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold tracking-wider text-cyan-400 font-mono">
-            REALMSHAPER // CREATOR STUDIO
-          </span>
-          <div className="h-4 w-px bg-slate-800" />
-          <nav className="flex items-center gap-1">
-            <Button
-              variant={activeModule === 'map' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveModule('map')}
-              className={`h-7 px-3 text-xs gap-1.5 ${
-                activeModule === 'map'
-                  ? 'bg-slate-800 text-cyan-400 font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Map className="w-3.5 h-3.5" />
-              <span>3D Map Builder</span>
-            </Button>
-            <Button
-              variant={activeModule === 'stats' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveModule('stats')}
-              className={`h-7 px-3 text-xs gap-1.5 ${
-                activeModule === 'stats'
-                  ? 'bg-slate-800 text-cyan-400 font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Activity className="w-3.5 h-3.5" />
-              <span>Stat Balancer</span>
-            </Button>
-            <Button
-              variant={activeModule === 'texture' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveModule('texture')}
-              className={`h-7 px-3 text-xs gap-1.5 ${
-                activeModule === 'texture'
-                  ? 'bg-slate-800 text-cyan-400 font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Palette className="w-3.5 h-3.5" />
-              <span>3D Material & Texture</span>
-            </Button>
-            <Button
-              variant={activeModule === 'quest' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveModule('quest')}
-              className={`h-7 px-3 text-xs gap-1.5 ${
-                activeModule === 'quest'
-                  ? 'bg-slate-800 text-cyan-400 font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <GitBranch className="w-3.5 h-3.5" />
-              <span>Quest Graph Editor</span>
-            </Button>
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded px-2 py-1">
-            <span className="flex items-center gap-1 text-[11px] font-mono text-slate-300">
-              {serverStatus.online ? (
-                <Wifi className="w-3 h-3 text-emerald-400" />
-              ) : (
-                <WifiOff className="w-3 h-3 text-rose-500" />
-              )}
-              <span>API</span>
-            </span>
-
-            <span className="flex items-center gap-1 text-[11px] font-mono text-slate-300 border-l border-slate-800 pl-2">
-              <Database
-                className={`w-3 h-3 ${serverStatus.db ? 'text-emerald-400' : 'text-slate-600'}`}
-              />
-              <span>Postgres</span>
-            </span>
-
-            <span className="flex items-center gap-1 text-[11px] font-mono text-slate-300 border-l border-slate-800 pl-2">
-              <HardDrive
-                className={`w-3 h-3 ${serverStatus.storage ? 'text-emerald-400' : 'text-slate-600'}`}
-              />
-              <span>RustFS</span>
-            </span>
-          </div>
-
-          <span className="text-[10px] text-slate-500 font-mono hidden xl:inline">
-            RealmShaper Studio v0.2.0
-          </span>
-        </div>
-      </header>
-
-      {/* Main Workspace Body */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {activeModule === 'map' && (
-          <>
-            <MapToolbar />
-            <main className="flex-1 h-full relative">
-              <MapCanvas />
-            </main>
-          </>
-        )}
-
-        {activeModule === 'stats' && (
-          <main className="w-full h-full">
-            <StatBalancerView />
-          </main>
-        )}
-
-        {activeModule === 'texture' && (
-          <>
-            <TextureToolbar />
-            <main className="flex-1 h-full relative">
-              <TextureCanvas />
-            </main>
-          </>
-        )}
-
-        {activeModule === 'quest' && (
-          <>
-            <QuestToolbar />
-            <main className="flex-1 h-full relative">
-              <QuestGraphCanvas />
-            </main>
-          </>
-        )}
-      </div>
-    </div>
+    <DashboardLayout
+      currentTab={currentTab}
+      onSelectTab={handleSelectTab}
+      onOpenMapEditor={() => handleOpenEditor('map')}
+      onOpenStatEditor={() => handleOpenEditor('stats')}
+      onOpenQuestEditor={() => handleOpenEditor('quest')}
+    />
   );
 }
 

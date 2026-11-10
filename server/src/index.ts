@@ -7,6 +7,7 @@ import { DrizzleCharacterRepository } from './models/repositories/DrizzleCharact
 import { StorageService } from './storage/StorageService.js';
 import { GatewayManager } from './gateway/GatewayManager.js';
 import { registerPgcRoutes } from './api/pgc.js';
+import { registerMapDraftRoutes } from './api/mapDrafts.js';
 
 const app = Fastify({ logger: { level: 'info' } });
 const storage = new StorageService();
@@ -36,6 +37,7 @@ app.get('/health', async () => {
 app.get('/ws', { websocket: true }, (socket) => gateway.handleConnection(socket));
 
 await registerPgcRoutes(app, db, storage);
+await registerMapDraftRoutes(app, db);
 
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info(`[Boot] ${signal} received, shutting down...`);

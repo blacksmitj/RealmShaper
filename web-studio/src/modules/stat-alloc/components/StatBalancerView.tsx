@@ -72,45 +72,45 @@ export const StatBalancerView: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex overflow-hidden bg-slate-950 font-sans text-slate-100">
+    <div className="w-full h-full flex overflow-hidden bg-background font-sans text-foreground">
       {/* Left Column: Attribute Allocation Controls */}
-      <div className="w-[450px] border-r border-slate-800 flex flex-col h-full bg-slate-900/40 p-6 overflow-y-auto space-y-6">
+      <div className="w-[450px] border-r border-border flex flex-col h-full bg-muted/30 p-6 overflow-y-auto space-y-6">
         <div>
-          <div className="flex items-center gap-2 text-cyan-400 mb-1">
+          <div className="flex items-center gap-2 text-primary mb-1">
             <Sparkles className="w-4 h-4" />
             <h2 className="text-xs font-bold uppercase tracking-wider">Monster Stat Balancer</h2>
           </div>
-          <h1 className="text-lg font-bold text-slate-100">Creator Stat Budgeting</h1>
-          <p className="text-xs text-slate-400">
+          <h1 className="text-lg font-bold text-foreground">Creator Stat Budgeting</h1>
+          <p className="text-xs text-muted-foreground">
             Keseimbangan parameter monster dikunci oleh server-authoritative budget rule.
           </p>
         </div>
 
         {/* Monster Meta */}
-        <div className="space-y-3 p-4 bg-slate-950/60 border border-slate-800 rounded-lg">
+        <div className="space-y-3 p-4 bg-card/60 border border-border rounded-lg">
           <div>
-            <label className="text-xs text-slate-400 block mb-1">Monster Name</label>
+            <label className="text-xs text-muted-foreground block mb-1">Monster Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setMeta(e.target.value, tier, level, behavior)}
-              className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+              className="w-full bg-muted/40 border border-border rounded px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Tier / Class</label>
+              <label className="text-xs text-muted-foreground block mb-1">Tier / Class</label>
               <Select
                 value={tier}
                 onValueChange={(val) => {
                   if (val) setMeta(name, val as MonsterTier, level, behavior);
                 }}
               >
-                <SelectTrigger className="w-full bg-slate-900 border-slate-800 text-xs">
+                <SelectTrigger className="w-full bg-muted/40 border-border text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-950 border-slate-800 text-xs">
+                <SelectContent className="bg-background border-border text-xs">
                   <SelectItem value="normal">Normal Mob</SelectItem>
                   <SelectItem value="elite">Elite Champion</SelectItem>
                   <SelectItem value="boss">Dungeon Boss</SelectItem>
@@ -119,17 +119,17 @@ export const StatBalancerView: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs text-slate-400 block mb-1">AI Behavior</label>
+              <label className="text-xs text-muted-foreground block mb-1">AI Behavior</label>
               <Select
                 value={behavior}
                 onValueChange={(val) => {
                   if (val) setMeta(name, tier, level, val as MonsterBehavior);
                 }}
               >
-                <SelectTrigger className="w-full bg-slate-900 border-slate-800 text-xs">
+                <SelectTrigger className="w-full bg-muted/40 border-border text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-950 border-slate-800 text-xs">
+                <SelectContent className="bg-background border-border text-xs">
                   <SelectItem value="aggressive">Aggressive (Aggro)</SelectItem>
                   <SelectItem value="patrol">Patrol Area</SelectItem>
                   <SelectItem value="passive">Passive / Neutral</SelectItem>
@@ -141,8 +141,8 @@ export const StatBalancerView: React.FC = () => {
           {/* Level Slider */}
           <div className="space-y-1.5 pt-1">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Target Monster Level</span>
-              <span className="font-mono text-cyan-400 font-bold">Lv. {level}</span>
+              <span className="text-muted-foreground">Target Monster Level</span>
+              <span className="font-mono text-primary font-bold">Lv. {level}</span>
             </div>
             <Slider
               value={[level]}
@@ -158,23 +158,23 @@ export const StatBalancerView: React.FC = () => {
         </div>
 
         {/* Budget Counter Card */}
-        <div className="p-4 bg-gradient-to-r from-slate-900 to-cyan-950/40 border border-cyan-800/40 rounded-lg flex items-center justify-between">
+        <div className="p-4 bg-gradient-to-r from-card to-primary/10 border border-primary/40 rounded-lg flex items-center justify-between">
           <div>
-            <span className="text-[11px] text-slate-400 uppercase tracking-wider block">
+            <span className="text-[11px] text-muted-foreground uppercase tracking-wider block">
               Budget Status
             </span>
             <div className="flex items-baseline gap-1 mt-0.5">
               <span className="text-2xl font-bold font-mono text-white">{allocated}</span>
-              <span className="text-xs text-slate-400 font-mono">/ {maxBudget} Pts</span>
+              <span className="text-xs text-muted-foreground font-mono">/ {maxBudget} Pts</span>
             </div>
           </div>
           <div className="text-right">
-            <span className="text-[11px] text-slate-400 uppercase tracking-wider block">
+            <span className="text-[11px] text-muted-foreground uppercase tracking-wider block">
               Remaining
             </span>
             <span
               className={`text-xl font-bold font-mono ${
-                remaining === 0 ? 'text-emerald-400' : 'text-cyan-400'
+                remaining === 0 ? 'text-success' : 'text-primary'
               }`}
             >
               {remaining}
@@ -184,20 +184,20 @@ export const StatBalancerView: React.FC = () => {
 
         {/* Attribute Allocation Sliders */}
         <div className="space-y-4">
-          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
             Attribute Point Allocation
           </label>
           {attributes.map((attr) => (
             <div
               key={attr.key}
-              className="p-3 bg-slate-950/50 border border-slate-800 rounded-lg space-y-2"
+              className="p-3 bg-muted/30 border border-border rounded-lg space-y-2"
             >
               <div className="flex justify-between items-center">
                 <div>
-                  <span className="text-xs font-semibold text-slate-200">{attr.label}</span>
-                  <p className="text-[10px] text-slate-500">{attr.desc}</p>
+                  <span className="text-xs font-semibold text-foreground">{attr.label}</span>
+                  <p className="text-[10px] text-muted-foreground">{attr.desc}</p>
                 </div>
-                <span className="text-sm font-mono font-bold text-cyan-400 px-2 py-0.5 bg-slate-900 rounded border border-slate-800">
+                <span className="text-sm font-mono font-bold text-primary px-2 py-0.5 bg-muted/40 rounded border border-border">
                   {attr.val}
                 </span>
               </div>
@@ -221,15 +221,15 @@ export const StatBalancerView: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={resetStats}
-            className="flex-1 bg-slate-900 border-slate-800 hover:bg-slate-800 text-xs gap-1.5"
+            className="flex-1 bg-muted/40 border-border hover:bg-muted text-xs gap-1.5"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+            <RotateCcw className="w-3.5 h-3.5 text-muted-foreground" />
             <span>Reset Stats</span>
           </Button>
           <Button
             size="sm"
             onClick={handleExport}
-            className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs gap-1.5 shadow-md shadow-cyan-950"
+            className="flex-1 bg-primary hover:bg-primary/90 text-white text-xs gap-1.5 shadow-md shadow-primary/20"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export Preset</span>
@@ -238,77 +238,77 @@ export const StatBalancerView: React.FC = () => {
       </div>
 
       {/* Right Column: Live Combat Simulation Card */}
-      <div className="flex-1 p-8 flex flex-col justify-center items-center relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950">
+      <div className="flex-1 p-8 flex flex-col justify-center items-center relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-card via-background to-background">
         <div className="max-w-lg w-full space-y-6">
           <div className="text-center space-y-2">
-            <span className="text-xs px-3 py-1 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 uppercase tracking-widest font-mono">
+            <span className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/30 uppercase tracking-widest font-mono">
               Live Combat Math Preview
             </span>
             <h2 className="text-3xl font-extrabold text-white tracking-tight">{name}</h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               Hasil kalkulasi deterministik yang akan dieksekusi oleh{' '}
-              <span className="text-cyan-400 font-mono">DummyMonster3D.gd</span> &{' '}
-              <span className="text-cyan-400 font-mono">GameEngine.ts</span>
+              <span className="text-primary font-mono">DummyMonster3D.gd</span> &{' '}
+              <span className="text-primary font-mono">GameEngine.ts</span>
             </p>
           </div>
 
           {/* Combat Cards Grid */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 backdrop-blur">
-              <div className="flex items-center gap-2 text-rose-400">
+            <div className="p-5 bg-muted/40/80 border border-border rounded-xl space-y-2 backdrop-blur">
+              <div className="flex items-center gap-2 text-destructive">
                 <Heart className="w-4 h-4" />
                 <span className="text-xs font-semibold uppercase">Max Health (HP)</span>
               </div>
               <div className="text-2xl font-bold font-mono text-white">{derived.maxHp}</div>
-              <p className="text-[10px] text-slate-500">Scaled by VIT & Tier Multiplier</p>
+              <p className="text-[10px] text-muted-foreground">Scaled by VIT & Tier Multiplier</p>
             </div>
 
-            <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 backdrop-blur">
-              <div className="flex items-center gap-2 text-amber-400">
+            <div className="p-5 bg-muted/40/80 border border-border rounded-xl space-y-2 backdrop-blur">
+              <div className="flex items-center gap-2 text-warning">
                 <Swords className="w-4 h-4" />
                 <span className="text-xs font-semibold uppercase">Attack Power</span>
               </div>
               <div className="text-2xl font-bold font-mono text-white">{derived.attackDamage}</div>
-              <p className="text-[10px] text-slate-500">Base damage dealt per swing</p>
+              <p className="text-[10px] text-muted-foreground">Base damage dealt per swing</p>
             </div>
 
-            <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 backdrop-blur">
+            <div className="p-5 bg-muted/40/80 border border-border rounded-xl space-y-2 backdrop-blur">
               <div className="flex items-center gap-2 text-blue-400">
                 <Shield className="w-4 h-4" />
                 <span className="text-xs font-semibold uppercase">Armor Defense</span>
               </div>
               <div className="text-2xl font-bold font-mono text-white">{derived.defense}</div>
-              <p className="text-[10px] text-slate-500">Damage reduction against players</p>
+              <p className="text-[10px] text-muted-foreground">Damage reduction against players</p>
             </div>
 
-            <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2 backdrop-blur">
-              <div className="flex items-center gap-2 text-emerald-400">
+            <div className="p-5 bg-muted/40/80 border border-border rounded-xl space-y-2 backdrop-blur">
+              <div className="flex items-center gap-2 text-success">
                 <Zap className="w-4 h-4" />
                 <span className="text-xs font-semibold uppercase">Move Speed</span>
               </div>
               <div className="text-2xl font-bold font-mono text-white">
-                {derived.moveSpeed} <span className="text-xs font-normal text-slate-400">m/s</span>
+                {derived.moveSpeed} <span className="text-xs font-normal text-muted-foreground">m/s</span>
               </div>
-              <p className="text-[10px] text-slate-500">Chase velocity in 3D world</p>
+              <p className="text-[10px] text-muted-foreground">Chase velocity in 3D world</p>
             </div>
           </div>
 
           {/* Reward & Drops Banner */}
-          <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl flex items-center justify-between">
+          <div className="p-4 bg-muted/40/50 border border-border rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-amber-950/60 border border-amber-800/40 text-amber-400">
+              <div className="p-2.5 rounded-lg bg-warning/15 border border-warning/30 text-warning">
                 <Award className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-xs font-semibold text-slate-200 block">Experience Bounty</span>
-                <span className="text-sm font-mono font-bold text-amber-400">
+                <span className="text-xs font-semibold text-foreground block">Experience Bounty</span>
+                <span className="text-sm font-mono font-bold text-warning">
                   +{derived.expReward} EXP
                 </span>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-[11px] text-slate-400 block">Verified Budget</span>
-              <span className="text-xs text-emerald-400 font-medium flex items-center gap-1 justify-end">
+              <span className="text-[11px] text-muted-foreground block">Verified Budget</span>
+              <span className="text-xs text-success font-medium flex items-center gap-1 justify-end">
                 <AlertCircle className="w-3.5 h-3.5" /> Server Compliant
               </span>
             </div>

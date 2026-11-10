@@ -12,10 +12,12 @@ import {
   Layers,
   Sun,
   Moon,
+  Mountain,
+  Wand2,
 } from 'lucide-react';
 import { useMapStore } from '../stores/mapStore';
-import { FLOOR_MATERIALS } from '../types/map.types';
-import type { EnvironmentTheme } from '../types/map.types';
+import { FLOOR_MATERIALS, TERRAIN_TEMPLATES } from '../types/map.types';
+import type { EnvironmentTheme, MapPresetId } from '../types/map.types';
 
 // Strict Shadcn UI Components
 import { Button } from '@/components/ui/button';
@@ -30,6 +32,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 interface FloatingMapSettingsWindowProps {
   isOpen: boolean;
@@ -47,9 +58,14 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
     height,
     environmentTheme,
     customFloors,
+    props,
+    spawners,
+    portals,
+    voxelBlocks,
     setMapMeta,
     setDimensions,
     setEnvironmentTheme,
+    loadPresetMap,
   } = useMapStore();
 
   // Local form states
@@ -59,6 +75,8 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
   const [localHeight, setLocalHeight] = useState(height);
   const [localTheme, setLocalTheme] = useState<EnvironmentTheme>(environmentTheme);
   const [selectedFillFloor, setSelectedFillFloor] = useState<number>(6); // Default: Grass (id 6)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<MapPresetId>('walled_dirt');
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -159,6 +177,30 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
     setHasChanges(false);
   };
 
+  const handleApplyTemplate = (templateId: MapPresetId) => {
+    const finalWidth = Math.max(8, Math.min(64, localWidth));
+    const finalHeight = Math.max(8, Math.min(64, localHeight));
+    loadPresetMap(templateId, finalWidth, finalHeight);
+    setIsConfirmDialogOpen(false);
+  };
+
+  const isCanvasOccupied = useMemo(() => {
+    const hasProps = props.length > 0;
+    const hasSpawners = spawners.length > 0;
+    const hasPortals = portals.length > 0;
+    const blockCount = Object.keys(voxelBlocks).length;
+    // Map dianggap memiliki konten jika ada props/spawner/portal atau banyak balok
+    return hasProps || hasSpawners || hasPortals || blockCount > (width * 2 + height * 2);
+  }, [props.length, spawners.length, portals.length, voxelBlocks, width, height]);
+
+  const onTriggerGenerateTemplate = () => {
+    if (isCanvasOccupied) {
+      setIsConfirmDialogOpen(true);
+    } else {
+      handleApplyTemplate(selectedTemplateId);
+    }
+  };
+
   const isCropWarning = localWidth < width || localHeight < height;
 
   if (!isOpen) return null;
@@ -166,26 +208,26 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
   return (
     <div
       style={{ left: `${position.x}px`, top: `${position.y}px` }}
-      className={`fixed z-50 w-[380px] bg-slate-900/95 border border-slate-700/80 rounded-xl shadow-2xl backdrop-blur-md transition-all duration-150 flex flex-col text-slate-100 ${
+      className={`fixed z-50 w-[380px] bg-card/95 border border-border rounded-xl shadow-2xl backdrop-blur-md transition-all duration-150 flex flex-col text-card-foreground ${
         isDragging ? 'select-none opacity-90 scale-[0.99]' : ''
       }`}
     >
       {/* Header / Drag Bar */}
       <div
         onMouseDown={handleDragStart}
-        className="flex items-center justify-between px-3.5 py-2.5 bg-slate-800/90 border-b border-slate-700/60 rounded-t-xl cursor-grab active:cursor-grabbing select-none"
+        className="flex items-center justify-between px-3.5 py-2.5 bg-muted/60 border-b border-border rounded-t-xl cursor-grab active:cursor-grabbing select-none"
       >
         <div className="flex items-center gap-2">
-          <GripHorizontal className="w-4 h-4 text-slate-400" />
-          <div className="p-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <GripHorizontal className="w-4 h-4 text-muted-foreground" />
+          <div className="p-1 rounded bg-warning/10 text-warning border border-warning/20">
             <Settings className="w-3.5 h-3.5" />
           </div>
-          <span className="text-xs font-semibold tracking-wide text-slate-200">
+          <span className="text-xs font-semibold tracking-wide text-foreground">
             Map Settings
           </span>
           <Badge
             variant="outline"
-            className="text-[10px] px-1.5 py-0 h-4 bg-slate-950/60 border-slate-700 text-slate-400"
+            className="text-[10px] px-1.5 py-0 h-4 bg-background/60 border-border text-muted-foreground"
           >
             {width}x{height}
           </Badge>
@@ -196,7 +238,7 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
             variant="ghost"
             size="icon"
             onClick={() => setIsMinimized((prev) => !prev)}
-            className="w-6 h-6 text-slate-400 hover:text-white hover:bg-slate-700/50"
+            className="w-6 h-6 text-muted-foreground hover:text-foreground hover:bg-muted"
             title={isMinimized ? 'Expand' : 'Minimize'}
           >
             {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
@@ -205,7 +247,7 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="w-6 h-6 text-slate-400 hover:text-rose-400 hover:bg-slate-700/50"
+            className="w-6 h-6 text-muted-foreground hover:text-destructive hover:bg-muted"
             title="Close"
           >
             <X className="w-3.5 h-3.5" />
@@ -217,43 +259,43 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
       {!isMinimized && (
         <div className="p-4 space-y-4 text-xs">
           {/* Metadata Section */}
-          <div className="space-y-3 p-2.5 rounded-lg bg-slate-950/50 border border-slate-800/80">
+          <div className="space-y-3 p-2.5 rounded-lg bg-background/50 border border-border">
             <div>
-              <Label className="text-[11px] font-medium text-slate-300">Map Name</Label>
+              <Label className="text-[11px] font-medium text-foreground">Map Name</Label>
               <Input
                 value={localName}
                 onChange={(e) => handleNameChange(e.target.value)}
                 placeholder="e.g. Catacombs Entrance"
-                className="h-8 mt-1 text-xs bg-slate-900 border-slate-700 focus-visible:ring-amber-500/50"
+                className="h-8 mt-1 text-xs bg-muted/40 border-input focus-visible:ring-ring"
               />
             </div>
             <div>
-              <Label className="text-[11px] font-medium text-slate-400">Map ID (Technical Slug)</Label>
+              <Label className="text-[11px] font-medium text-muted-foreground">Map ID (Technical Slug)</Label>
               <Input
                 value={localId}
                 onChange={(e) => setLocalId(e.target.value)}
                 placeholder="e.g. catacombs_entrance"
-                className="h-8 mt-1 text-xs font-mono bg-slate-900/60 border-slate-700/70 text-slate-300 focus-visible:ring-amber-500/50"
+                className="h-8 mt-1 text-xs font-mono bg-muted/20 border-input text-foreground focus-visible:ring-ring"
               />
             </div>
           </div>
 
           {/* Grid Dimensions Section */}
-          <div className="space-y-3 p-2.5 rounded-lg bg-slate-950/50 border border-slate-800/80">
+          <div className="space-y-3 p-2.5 rounded-lg bg-background/50 border border-border">
             <div className="flex items-center justify-between">
-              <Label className="text-[11px] font-medium text-slate-300 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-amber-400" /> Grid Dimensions (Tiles)
+              <Label className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-warning" /> Grid Dimensions (Tiles)
               </Label>
-              <span className="font-mono text-[11px] font-bold text-amber-400">
+              <span className="font-mono text-[11px] font-bold text-warning">
                 {localWidth} x {localHeight} tiles
               </span>
             </div>
 
             {/* Width */}
             <div className="space-y-1">
-              <div className="flex justify-between text-[11px] text-slate-400">
+              <div className="flex justify-between text-[11px] text-muted-foreground">
                 <span>Width (X)</span>
-                <span className="font-mono text-slate-200">{localWidth}</span>
+                <span className="font-mono text-foreground">{localWidth}</span>
               </div>
               <Slider
                 min={8}
@@ -270,9 +312,9 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
 
             {/* Height */}
             <div className="space-y-1">
-              <div className="flex justify-between text-[11px] text-slate-400">
+              <div className="flex justify-between text-[11px] text-muted-foreground">
                 <span>Height / Length (Y)</span>
-                <span className="font-mono text-slate-200">{localHeight}</span>
+                <span className="font-mono text-foreground">{localHeight}</span>
               </div>
               <Slider
                 min={8}
@@ -289,8 +331,8 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
 
             {/* Crop Warning Alert */}
             {isCropWarning && (
-              <div className="flex items-start gap-2 p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] leading-relaxed">
-                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-400" />
+              <div className="flex items-start gap-2 p-2 rounded bg-warning/10 border border-warning/30 text-warning text-[10px] leading-relaxed">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-warning" />
                 <span>
                   Memperkecil dimensi akan memotong (crop) tile dan prop di luar batas koordinat baru (Anchor Top-Left).
                 </span>
@@ -299,24 +341,34 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
           </div>
 
           {/* Environment Theme & Default Fill */}
-          <div className="space-y-3 p-2.5 rounded-lg bg-slate-950/50 border border-slate-800/80">
+          <div className="space-y-3 p-2.5 rounded-lg bg-background/50 border border-border">
             <div>
-              <Label className="text-[11px] font-medium text-slate-300 flex items-center gap-1.5 mb-1.5">
+              <Label className="text-[11px] font-medium text-foreground flex items-center gap-1.5 mb-1.5">
                 {localTheme === 'medieval_day' ? (
-                  <Sun className="w-3.5 h-3.5 text-amber-400" />
+                  <Sun className="w-3.5 h-3.5 text-warning" />
                 ) : (
-                  <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                  <Moon className="w-3.5 h-3.5 text-info" />
                 )}
                 Environment Theme
               </Label>
               <Select
                 value={localTheme}
-                onValueChange={(val) => setLocalTheme(val as EnvironmentTheme)}
+                onValueChange={(val) => {
+                  if (val) setLocalTheme(val as EnvironmentTheme);
+                }}
               >
-                <SelectTrigger className="h-8 text-xs bg-slate-900 border-slate-700">
-                  <SelectValue placeholder="Pilih tema visual" />
+                <SelectTrigger className="w-full h-8 text-xs bg-muted/40 border-input">
+                  <SelectValue placeholder="Pilih tema visual">
+                    {localTheme === 'medieval_day'
+                      ? 'Medieval Sunlit Day (Warm Ambient)'
+                      : 'Gothic Moonlight Night (Dark Fog)'}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-700 text-slate-200 text-xs">
+                <SelectContent
+                  alignItemWithTrigger={false}
+                  sideOffset={4}
+                  className="bg-popover border border-border text-popover-foreground text-xs shadow-xl"
+                >
                   <SelectItem value="medieval_day">Medieval Sunlit Day (Warm Ambient)</SelectItem>
                   <SelectItem value="gothic_night">Gothic Moonlight Night (Dark Fog)</SelectItem>
                 </SelectContent>
@@ -324,18 +376,38 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
             </div>
 
             <div>
-              <Label className="text-[11px] font-medium text-slate-300 flex items-center gap-1.5 mb-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <Label className="text-[11px] font-medium text-foreground flex items-center gap-1.5 mb-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-success" />
                 Default Floor Expansion Fill
               </Label>
               <Select
                 value={String(selectedFillFloor)}
-                onValueChange={(val) => setSelectedFillFloor(Number(val))}
+                onValueChange={(val) => {
+                  if (val) setSelectedFillFloor(Number(val));
+                }}
               >
-                <SelectTrigger className="h-8 text-xs bg-slate-900 border-slate-700">
-                  <SelectValue placeholder="Pilih material dasar" />
+                <SelectTrigger className="w-full h-8 text-xs bg-muted/40 border-input">
+                  <SelectValue placeholder="Pilih material dasar">
+                    {(() => {
+                      const fl = allFloors.find((f) => f.id === selectedFillFloor);
+                      if (!fl) return null;
+                      return (
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full border border-black/40"
+                            style={{ backgroundColor: fl.swatchColor }}
+                          />
+                          <span>{fl.name}</span>
+                        </div>
+                      );
+                    })()}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-700 text-slate-200 text-xs max-h-48">
+                <SelectContent
+                  alignItemWithTrigger={false}
+                  sideOffset={4}
+                  className="bg-popover border border-border text-popover-foreground text-xs max-h-48 shadow-xl"
+                >
                   {allFloors.map((fl) => (
                     <SelectItem key={fl.id} value={String(fl.id)}>
                       <div className="flex items-center gap-2">
@@ -352,6 +424,62 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
             </div>
           </div>
 
+          {/* Terrain & Environment Templates Section */}
+          <div className="space-y-3 p-2.5 rounded-lg bg-background/50 border border-border">
+            <div>
+              <Label className="text-[11px] font-medium text-foreground flex items-center justify-between mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Mountain className="w-3.5 h-3.5 text-warning" />
+                  Default Terrain / Map Templates
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-[9px] px-1 py-0 h-4 border-warning/30 text-warning bg-warning/10 font-normal"
+                >
+                  {localWidth}x{localHeight} grid
+                </Badge>
+              </Label>
+              <Select
+                value={selectedTemplateId}
+                onValueChange={(val) => {
+                  if (val) setSelectedTemplateId(val as MapPresetId);
+                }}
+              >
+                <SelectTrigger className="w-full h-9 text-xs bg-muted/40 border-input">
+                  <SelectValue placeholder="Pilih template terrain">
+                    {TERRAIN_TEMPLATES.find((t) => t.id === selectedTemplateId)?.name}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent
+                  alignItemWithTrigger={false}
+                  sideOffset={6}
+                  className="bg-popover border border-border text-popover-foreground text-xs shadow-2xl max-h-60"
+                >
+                  {TERRAIN_TEMPLATES.map((tmpl) => (
+                    <SelectItem key={tmpl.id} value={tmpl.id} className="py-2 focus:bg-accent focus:text-accent-foreground">
+                      <div className="flex flex-col text-left pr-2">
+                        <span className="font-semibold text-foreground">{tmpl.name}</span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">
+                          {tmpl.description}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onTriggerGenerateTemplate}
+              className="w-full h-8 text-xs font-medium border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
+            >
+              <Wand2 className="w-3.5 h-3.5 mr-1.5 text-warning" />
+              Generate / Apply Template ({localWidth}x{localHeight})
+            </Button>
+          </div>
+
           {/* Action Footer */}
           <div className="flex items-center justify-between pt-1">
             <Button
@@ -365,7 +493,7 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
                 setLocalTheme(environmentTheme);
               }}
               disabled={!hasChanges}
-              className="h-8 text-xs text-slate-400 border-slate-700 hover:bg-slate-800"
+              className="h-8 text-xs text-muted-foreground border-border hover:bg-muted"
             >
               <RotateCcw className="w-3.5 h-3.5 mr-1" />
               Reset
@@ -375,7 +503,7 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
               size="sm"
               onClick={handleApply}
               disabled={!hasChanges && localWidth === width && localHeight === height}
-              className="h-8 px-4 text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-950/50"
+              className="h-8 px-4 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
             >
               <Check className="w-3.5 h-3.5 mr-1.5" />
               Apply Changes
@@ -383,6 +511,34 @@ export const FloatingMapSettingsWindow: React.FC<FloatingMapSettingsWindowProps>
           </div>
         </div>
       )}
+
+      {/* Confirmation Dialog when applying template over existing content */}
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent className="max-w-md bg-card border-border text-card-foreground">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-warning">
+              <AlertTriangle className="w-5 h-5 text-warning" />
+              Terapkan Template Terrain Baru?
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs pt-1 leading-relaxed">
+              Menerapkan template <strong>{TERRAIN_TEMPLATES.find((t) => t.id === selectedTemplateId)?.name}</strong> akan menghapus objek, dinding, spawner, dan portal yang ada saat ini di canvas dan menggantinya dengan template baru berukuran <strong>{localWidth}x{localHeight}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
+            <DialogClose render={<Button variant="outline" size="sm" className="border-border text-foreground" />}>
+              Batal
+            </DialogClose>
+            <Button
+              size="sm"
+              onClick={() => handleApplyTemplate(selectedTemplateId)}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Ya, Ganti Canvas
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -29,13 +29,13 @@ export const QuestGraphCanvas: React.FC = () => {
   const getNodeIcon = (type: QuestNodeType) => {
     switch (type) {
       case 'start':
-        return <Play className="w-3.5 h-3.5 text-emerald-400" />;
+        return <Play className="w-3.5 h-3.5 text-success" />;
       case 'dialogue':
-        return <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />;
+        return <MessageSquare className="w-3.5 h-3.5 text-primary" />;
       case 'kill_objective':
-        return <Swords className="w-3.5 h-3.5 text-rose-400" />;
+        return <Swords className="w-3.5 h-3.5 text-destructive" />;
       case 'deliver_item':
-        return <Package className="w-3.5 h-3.5 text-amber-400" />;
+        return <Package className="w-3.5 h-3.5 text-warning" />;
       case 'reward':
         return <Gift className="w-3.5 h-3.5 text-purple-400" />;
     }
@@ -84,7 +84,7 @@ export const QuestGraphCanvas: React.FC = () => {
         selectNode(null);
         setConnectingFromId(null);
       }}
-      className="w-full h-full relative overflow-hidden bg-slate-950 select-none bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px]"
+      className="w-full h-full relative overflow-hidden bg-background select-none bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:24px_24px]"
     >
       {/* SVG Connection Lines */}
       <svg className="w-full h-full absolute inset-0 pointer-events-none z-0">
@@ -160,51 +160,51 @@ export const QuestGraphCanvas: React.FC = () => {
             }}
             className={`absolute z-10 rounded-xl p-3 cursor-grab active:cursor-grabbing transition-shadow flex flex-col justify-between ${
               isSelected
-                ? 'bg-slate-900 border-2 border-cyan-500 shadow-xl shadow-cyan-950'
-                : 'bg-slate-900/90 border border-slate-800 hover:border-slate-700 shadow-lg'
+                ? 'bg-card border-2 border-primary shadow-xl shadow-primary/20'
+                : 'bg-card/90 border border-border hover:border-border shadow-lg'
             }`}
           >
             {/* Node Card Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <div className="p-1 rounded bg-slate-950 border border-slate-800">
+                <div className="p-1 rounded bg-background border border-border">
                   {getNodeIcon(node.type)}
                 </div>
-                <span className="text-xs font-bold text-slate-200 truncate max-w-[120px]">
+                <span className="text-xs font-bold text-foreground truncate max-w-[120px]">
                   {node.title}
                 </span>
               </div>
-              <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
+              <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
                 {node.type}
               </span>
             </div>
 
             {/* Node Card Body Preview */}
-            <div className="text-[11px] text-slate-400 truncate">
+            <div className="text-[11px] text-muted-foreground truncate">
               {node.type === 'dialogue' && (
-                <p className="italic text-slate-300">"{node.data.text || 'Dialogue text'}"</p>
+                <p className="italic text-foreground">"{node.data.text || 'Dialogue text'}"</p>
               )}
               {node.type === 'kill_objective' && (
-                <p className="text-rose-300">
+                <p className="text-destructive">
                   Slay {node.data.requiredCount ?? 1}x {node.data.targetMonsterId}
                 </p>
               )}
               {node.type === 'reward' && (
-                <p className="text-amber-300">
+                <p className="text-warning">
                   +{node.data.expReward} EXP | +{node.data.goldReward} G
                 </p>
               )}
               {node.type === 'start' && (
-                <p className="text-emerald-300">NPC: {node.data.label}</p>
+                <p className="text-success">NPC: {node.data.label}</p>
               )}
               {node.type === 'deliver_item' && (
-                <p className="text-amber-300">To NPC: {node.data.targetNpcId}</p>
+                <p className="text-warning">To NPC: {node.data.targetNpcId}</p>
               )}
             </div>
 
             {/* Connect Handle Port */}
-            <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
-              <span className="text-[9px] text-slate-500 font-mono">Drag to move</span>
+            <div className="flex justify-between items-center pt-1 border-t border-border">
+              <span className="text-[9px] text-muted-foreground font-mono">Drag to move</span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -212,8 +212,8 @@ export const QuestGraphCanvas: React.FC = () => {
                 }}
                 className={`text-[10px] px-2 py-0.5 rounded font-medium transition ${
                   isConnecting
-                    ? 'bg-cyan-500 text-black font-bold animate-pulse'
-                    : 'bg-slate-800 text-cyan-400 hover:bg-slate-700'
+                    ? 'bg-primary text-primary-foreground font-bold animate-pulse'
+                    : 'bg-muted text-primary hover:bg-accent'
                 }`}
               >
                 {isConnecting ? 'Select Target' : 'Connect ➔'}
@@ -224,8 +224,8 @@ export const QuestGraphCanvas: React.FC = () => {
       })}
 
       {/* Guide Helper Overlay */}
-      <div className="absolute bottom-4 left-4 pointer-events-none bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 space-y-1">
-        <p className="font-semibold text-cyan-400">Node-based Quest Graph</p>
+      <div className="absolute bottom-4 left-4 pointer-events-none bg-card/80 backdrop-blur border border-border rounded-lg p-2.5 text-xs text-foreground space-y-1">
+        <p className="font-semibold text-primary">Node-based Quest Graph</p>
         <p>Drag card to rearrange | Click "Connect ➔" to link next stage</p>
         <p>Click card to inspect & modify dialog/objectives in panel</p>
       </div>
